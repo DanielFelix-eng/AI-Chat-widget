@@ -1,9 +1,9 @@
-import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
-import User from '../models/User.js'
-import { generateToken } from '../utils/setCookies.js'
-import { sendVerificationEmail } from '../resend/resend.js'
-import { sendWelcomeEmail, sendResetPasswordEmail, resetPasswordEmail } from '../resend/email.js'
+import bcrypt from 'bcryptjs'
+import User from '../models/user.js'
+import { generateToken } from '../utils/setCookie.js'
+import { sendEmail } from '../utils/sendEmail.js'
+import { EmailVerification, WelcomeEmail, ResetPassword, ResetPasswordSuccess } from '../templates/email.js'
 export const signup = async (req, res) => {
     const { email, password, name } = req.body;
 
@@ -37,7 +37,11 @@ export const signup = async (req, res) => {
 
 
         try {
-            await sendVerificationEmail(user.email, verificationToken);
+            await sendEmail({
+                to: user.email,
+                subject: 'Verify your email',
+                html: EmailVerification(verificationToken)
+            });
         } catch (emailError) {
             console.error('Failed to send verification email:', emailError);
         }
@@ -78,7 +82,11 @@ export const verifyEmail = async (req, res) => {
         user.verificationTokenExpire = undefined;
         await user.save();
 
-        await sendWelcomeEmail(user.name, user.email, 'https://yourapp.com/dashboard');
+        await sendEmail({
+            to: user.email,
+            subject: 'Welcome',
+            html: WelcomeEmail(user.name, user.email, 'https://yourapp.com/dashboard')
+        });
 
         return res.status(200).json({
             success: true,
@@ -107,7 +115,11 @@ export const resendVerification = async (req, res) => {
         user.verificationTokenExpire = new Date(Date.now() + 3600000)
         await user.save()
 
-        await sendVerificationEmail(user.email, verificationToken)
+        await sendEmail({
+            to: user.email,
+            subject: 'Verify your email',
+            html: EmailVerification(verificationToken)
+        });
 
         return res.status(200).json({
             success: true,
@@ -177,7 +189,11 @@ export const forgotPassword = async (req, res) => {
         user.resetPasswordExpire = resetTokenExpires;
         await user.save();
         // send email
-        await sendResetPasswordEmail(user.name, user.email, `http://localhost:5173/resetPassword?token=${token}`);
+        await sendEmail({
+            to: user.email,
+            subject: 'Reset your password',
+            html: ResetPassword(user.name, user.email, `http://localhost:5173/resetPassword?token=${token}`)
+        });
         return res.status(200).json({ success: true, message: 'Password reset email sent' });
 
     } catch (error) {
@@ -204,7 +220,11 @@ export const resetPassword = async (req, res) => {
         user.resetPasswordToken = undefined;
         user.resetPasswordExpire = undefined;
         await user.save()
-        await resetPasswordEmail(user.email);
+        await sendEmail({
+            to: user.email,
+            subject: 'Password reset successful',
+            html: ResetPasswordSuccess(user.name, user.email, 'https://yourapp.com/login')
+        });
         res.status(200).json({ success: true, message: 'Password reset successful' });
 
     } catch (error) {
