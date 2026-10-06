@@ -1,5 +1,6 @@
 import Document   from  " ../models/document.model.js";
  import   Chunk  from  "../models/chunk.model.js";
+ import  extractText  from  "../service/extract.js";
 const  MIN_TEXT_LENGTH  =  50;
  async function  markFailed(documentId , message) {  try {
      await  Chunk.deleteMany({documentId})  // this is to ensure no  partial Chunks behind 
