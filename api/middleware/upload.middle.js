@@ -1,8 +1,7 @@
-const multer = require('multer');
-const path = require('path');
-const crypto = require('crypto');
-const fs = require('fs');
-
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import crypto from 'crypto';
 const UPLOAD_DIR = path.resolve(process.env.UPLOAD_DIR || 'uploads');
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
@@ -57,4 +56,4 @@ const handleUpload = (req, res, next) => {
     });
 };
 
-module.exports = { handleUpload, UPLOAD_DIR, MAX_FILE_SIZE };
+export { handleUpload, UPLOAD_DIR, MAX_FILE_SIZE };

@@ -3,7 +3,7 @@ import path from "path";
 import crypto from "crypto";
 import { createReadStream } from "fs";
 import Document from "../models/documents.js";
-import { enqueueIngestion } from "../utils/ingestion.js";
+import  {enqueueIngestion}  from "../service/queu.js"
 
 // File extension -> Document.sourceType
 const SOURCE_TYPE_BY_EXT = {

@@ -1,39 +1,42 @@
 import fs from 'fs/promises';
 import path from 'path';
-import pdf from 'pdfjs-dist/legacy/build/pdf.js';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 async function extractPdf(buffer) {
+    const pdf = await pdfjsLib.getDocument({
+        data: new Uint8Array(buffer), // pdfjs needs a plain Uint8Array, not a Node Buffer
+        useSystemFonts: true,
+        isEvalSupported: false,
+    }).promise;
+
     const pages = [];
 
-    await pdf(buffer, {
-        pagerender: async (pageData) => {
-            const content = await pageData.getTextContent({
-                normalizeWhitespace: true,
-                disableCombineTextItems: false,
-            });
+    try {
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
 
-            // Rebuild lines: a change in the Y position means a new line
-            let lastY;
             let text = '';
             for (const item of content.items) {
-                const y = item.transform[5];
-                text += lastY === undefined || lastY === y ? item.str : '\n' + item.str;
-                lastY = y;
+                if (!('str' in item)) continue; // skip marked-content entries
+                text += item.str + (item.hasEOL ? '\n' : '');
             }
 
-            pages.push(text);
-            return text;
-        },
-    });
+            pages.push({ page: i, text });
+            page.cleanup();
+        }
+    } finally {
+        await pdf.destroy();
+    }
 
-    return pages.map((text, i) => ({ page: i + 1, text }));
+    return pages;
 }
 
 /**
  * @param {{ storagePath: string, originalName: string }} doc
  * @returns {Promise<Array<{ page: number | null, text: string }>>}
  */
-async function extractText(doc) {
+export async function extractText(doc) {
     const ext = path.extname(doc.originalName).toLowerCase();
     const buffer = await fs.readFile(doc.storagePath);
 
@@ -45,5 +48,3 @@ async function extractText(doc) {
 
     throw new Error(`Unsupported file type: ${ext}`);
 }
-
-module.exports = { extractText };

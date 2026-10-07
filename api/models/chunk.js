@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const chunkSchema = new mongoose.Schema(
     {
@@ -32,5 +32,5 @@ const chunkSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-module.exports = mongoose.model('Chunk', chunkSchema);
+export default mongoose.model('Chunk', chunkSchema);
 

@@ -1,5 +1,4 @@
-const mongoose = require('mongoose');
-
+import mongoose from 'mongoose';
 const documentSchema = new mongoose.Schema(
     {
         companyId: {
@@ -64,4 +63,4 @@ const documentSchema = new mongoose.Schema(
 // Fast duplicate lookup per company
 documentSchema.index({ companyId: 1, contentHash: 1 });
 
-module.exports = mongoose.model('Document', documentSchema);
+export default mongoose.model('Document', documentSchema);
