@@ -2,7 +2,6 @@ import mongoose from 'mongoose';
 
 const chunkSchema = new mongoose.Schema(
     {
-
         companyId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Company',
@@ -22,6 +21,7 @@ const chunkSchema = new mongoose.Schema(
         embedding: {
             type: [Number],
             required: true,
+            select: false, // don't load ~1000 floats per chunk on normal queries
         },
         metadata: {
             page: { type: Number, default: null },
@@ -33,4 +33,3 @@ const chunkSchema = new mongoose.Schema(
 );
 
 export default mongoose.model('Chunk', chunkSchema);
-
