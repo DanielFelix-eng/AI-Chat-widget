@@ -1,9 +1,9 @@
-import Document from '../../models/document.model.js';
-import Chunk from '../../models/chunk.model.js';
-import { extractText } from './extractText.js';
-import { cleanPages } from './cleanText.js';
-import { chunkPages } from './chunkText.js';
-import { embedTexts } from './embed.js';
+import Document from "../models/documents.js";
+import Chunk from "../models/chunk.js";
+import { extractText } from "./extract.js";
+import { cleanPages } from "./clean.js";
+import { chunkPages } from "./chunkText.js";
+import { embedTexts } from "./embed.js";
 
 const MIN_TEXT_LENGTH = 50; // below this, treat the file as having no readable text
 
