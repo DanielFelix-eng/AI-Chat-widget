@@ -1,7 +1,12 @@
 import { BrevoClient } from '@getbrevo/brevo';
 
 const getClient = () => {
-    return new BrevoClient({ apiKey: process.env.BREVO_API_KEY });
+    const apiKey = process.env.BREVO_API_KEY?.trim();
+    if (!apiKey) {
+        throw new Error('BREVO_API_KEY is not configured. Set it in the root .env file and restart the API server.');
+    }
+
+    return new BrevoClient({ apiKey });
 };
 
 export const sendEmail = async ({ to, subject, html }) => {

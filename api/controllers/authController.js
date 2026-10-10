@@ -175,26 +175,35 @@ export const login = async (req, res) => {
 }
 //forgot password logic 
 export const forgotPassword = async (req, res) => {
-    const { email } = req.body;
+    const email = String(req.body.email || '').trim().toLowerCase();
     try {
-        const user = await User.findOne({
-            email
-        })
+        if (!email) {
+            return res.status(400).json({ success: false, message: 'Email is required' });
+        }
+
+        const user = await User.findOne({ email });
         if (!user) {
-            return res.json({ success: false, message: 'User not found' });
+            return res.status(200).json({
+                success: true,
+                message: 'If an account exists for this email, a reset link will be sent.',
+            });
         }
         const token = crypto.randomBytes(20).toString('hex');
         const resetTokenExpires = Date.now() + 3600000;
         user.resetPasswordToken = token;
         user.resetPasswordExpire = resetTokenExpires;
         await user.save();
-        // send email
+        const resetUrl = new URL('/reset-password', process.env.CLIENT_URL || 'http://localhost:5173');
+        resetUrl.searchParams.set('token', token);
         await sendEmail({
             to: user.email,
             subject: 'Reset your password',
-            html: ResetPassword(user.name, user.email, `http://localhost:5173/resetPassword?token=${token}`)
+            html: ResetPassword(user.name, user.email, resetUrl.toString())
         });
-        return res.status(200).json({ success: true, message: 'Password reset email sent' });
+        return res.status(200).json({
+            success: true,
+            message: 'If an account exists for this email, a reset link will be sent.',
+        });
 
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
@@ -203,27 +212,27 @@ export const forgotPassword = async (req, res) => {
 //reset password logic 
 export const resetPassword = async (req, res) => {
     try {
-        const { token } = req.params;
-        const { password } = req.body
+        const { token, password } = req.body;
+        if (!token || typeof password !== 'string' || password.length < 8) {
+            return res.status(400).json({ success: false, message: 'A reset token and password of at least 8 characters are required' });
+        }
+
         const user = await User.findOne({
             resetPasswordToken: token,
             resetPasswordExpire: { $gt: Date.now() },
-
-        })
+        });
         if (!user) {
             return res.status(400).json({ success: false, message: 'Invalid or expired token' });
-
         }
-        //update password 
-        const hashedPassword = await bcrypt.hash(password, 10);
-        user.password = hashedPassword
+        user.password = password;
         user.resetPasswordToken = undefined;
         user.resetPasswordExpire = undefined;
-        await user.save()
+        await user.save();
+        const loginUrl = new URL('/login', process.env.CLIENT_URL || 'http://localhost:5173').toString();
         await sendEmail({
             to: user.email,
             subject: 'Password reset successful',
-            html: ResetPasswordSuccess(user.name, user.email, 'https://yourapp.com/login')
+            html: ResetPasswordSuccess(user.name, user.email, loginUrl)
         });
         res.status(200).json({ success: true, message: 'Password reset successful' });
 
@@ -385,4 +394,3 @@ export const deleteAccount = async (req, res) => {
         return res.status(500).json({ success: false, message: error.message })
     }
 }
-

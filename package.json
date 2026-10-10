@@ -5,10 +5,13 @@
     "start": "node api/index.js"
   },
   "dependencies": {
+    "@getbrevo/brevo": "^6.0.3",
     "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "fs": "^0.0.1-security",
+    "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.9.4",
     "multer": "^2.4.0",
     "nodemon": "^3.1.14",
@@ -16,10 +19,7 @@
     "scripts": "^0.1.0"
   },
   "devDependencies": {
-    "@getbrevo/brevo": "^6.0.3",
     "bcrypt": "^6.0.0",
-    "cookie-parser": "^1.4.7",
-    "crypto": "^1.0.1",
-    "jsonwebtoken": "^9.0.3"
+    "crypto": "^1.0.1"
   }
 }
