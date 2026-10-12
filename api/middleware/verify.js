@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import User from "../models/user.js";
 
 export const verifyToken = async (req, res, next) => {
     try {
@@ -14,8 +15,13 @@ export const verifyToken = async (req, res, next) => {
             return res.status(401).json({ success: false, message: "Invalid token" });
         }
 
-        req.userId = decoded.userId;
-        req.user = { id: decoded.userId };
+        const user = await User.findById(decoded.userId).select('name email companyId');
+        if (!user) {
+            return res.status(401).json({ success: false, message: "User not found" });
+        }
+
+        req.userId = user._id;
+        req.user = user;
         next();
     } catch (error) {
         console.log("Error token invalid", error);

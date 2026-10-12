@@ -35,10 +35,7 @@ const looksLikePdf = async (filePath) => {
   }
 };
 
-/**
- * POST /api/documents  (multipart/form-data, field "file")
- * Assumes your auth middleware sets req.user = { _id, companyId }.
- */
+
 export const uploadDocument = async (req, res, next) => {
   const file = req.file;
   try {

@@ -37,6 +37,11 @@ const userSchema = new mongoose.Schema(
         googleId: {
             type: String,
         },
+        companyId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Company',
+            default: null,
+        },
         profilePicture: {
             type: String,
         },

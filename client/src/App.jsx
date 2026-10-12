@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Dashboard from './pages/dashboard.jsx'
 import ForgotPassword from './pages/forgotPassword.jsx'
 import Login from './pages/login.jsx'
+import Onboarding from './pages/onboarding.jsx'
 import ResetPassword from './pages/resetPassword.jsx'
 import SignUp from './pages/signUp.jsx'
 import VerifyEmail from './pages/verifyEmail.jsx'
@@ -14,6 +15,7 @@ const routeNames = new Set([
   '/forgot-password',
   '/reset-password',
   '/dashboard',
+  '/onboarding',
 ])
 
 function currentRoute() {
@@ -99,6 +101,8 @@ function App() {
     page = <ResetPassword navigate={navigate} />
   } else if (route === '/dashboard') {
     page = <Dashboard navigate={navigate} />
+  } else if (route === '/onboarding') {
+    page = <Onboarding navigate={navigate} />
   } else {
     page = <SignUp navigate={navigate} rememberEmail={rememberEmail} />
   }
