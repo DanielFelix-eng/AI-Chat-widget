@@ -32,6 +32,15 @@ const companySchema = new mongoose.Schema(
                 type: String,
                 default: 'Hi! How can I help you today?',
             },
+            position: {
+                type: String,
+                enum: ['bottom-right', 'bottom-left'],
+                default: 'bottom-right',
+            },
+            enabled: {
+                type: Boolean,
+                default: true,
+            },
             logoUrl: {
                 type: String,
                 default: null,

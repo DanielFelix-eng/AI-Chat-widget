@@ -50,12 +50,21 @@ export async function embedTexts(texts, inputType = 'document') {
         vectors.push(...(await callVoyage(batch, inputType)));
     }
 
+    if (vectors.length !== texts.length) {
+        throw new Error(
+            `Embedding API returned ${vectors.length} vectors for ${texts.length} inputs`
+        );
+    }
+
     // Catch a dimension mismatch with the Atlas vector index before inserting anything
     const expected = Number(process.env.EMBEDDING_DIMENSIONS);
-    if (expected && vectors[0] && vectors[0].length !== expected) {
-        throw new Error(
-            `Embedding has ${vectors[0].length} dimensions but EMBEDDING_DIMENSIONS is ${expected}`
-        );
+    if (expected > 0) {
+        const mismatchedIndex = vectors.findIndex((vector) => vector.length !== expected);
+        if (mismatchedIndex !== -1) {
+            throw new Error(
+                `Embedding ${mismatchedIndex + 1} has ${vectors[mismatchedIndex].length} dimensions but EMBEDDING_DIMENSIONS is ${expected}`
+            );
+        }
     }
 
     return vectors;

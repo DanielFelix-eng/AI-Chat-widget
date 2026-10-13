@@ -26,7 +26,7 @@ export async function ingestDocument(documentId) {
     const doc = await Document.findOneAndUpdate(
         { _id: documentId, status: 'pending' },
         { status: 'processing', errorMessage: null },
-        { new: true }
+        { returnDocument: 'after' }
     );
     if (!doc) return; // already claimed, or deleted meanwhile
 

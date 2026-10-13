@@ -90,6 +90,10 @@ function App() {
     window.sessionStorage.setItem('auth-email', email)
   }
 
+  if (route === '/dashboard') {
+    return <Dashboard navigate={navigate} />
+  }
+
   let page
   if (route === '/login') {
     page = <Login navigate={navigate} rememberEmail={rememberEmail} />
@@ -99,8 +103,6 @@ function App() {
     page = <ForgotPassword navigate={navigate} />
   } else if (route === '/reset-password') {
     page = <ResetPassword navigate={navigate} />
-  } else if (route === '/dashboard') {
-    page = <Dashboard navigate={navigate} />
   } else if (route === '/onboarding') {
     page = <Onboarding navigate={navigate} />
   } else {

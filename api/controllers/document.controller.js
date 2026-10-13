@@ -43,15 +43,23 @@ export const uploadDocument = async (req, res, next) => {
       return res.status(400).json({ message: "No file uploaded (field name must be 'file')" });
     }
 
+    const { companyId, _id: userId } = req.user;
+    if (!companyId) {
+      await safeUnlink(file.path);
+      return res.status(409).json({ message: "Set up your company workspace before uploading documents." });
+    }
+
     const ext = path.extname(file.originalname).toLowerCase();
     const sourceType = SOURCE_TYPE_BY_EXT[ext];
+    if (!sourceType) {
+      await safeUnlink(file.path);
+      return res.status(400).json({ message: "Unsupported file type. Allowed: PDF, TXT, MD" });
+    }
 
     if (ext === ".pdf" && !(await looksLikePdf(file.path))) {
       await safeUnlink(file.path);
       return res.status(400).json({ message: "File is not a valid PDF" });
     }
-
-    const { companyId, _id: userId } = req.user;
 
     // Skip exact duplicates within the same company
     const contentHash = await hashFile(file.path);
@@ -91,5 +99,23 @@ export const uploadDocument = async (req, res, next) => {
   } catch (err) {
     await safeUnlink(file?.path);
     next(err);
+  }
+};
+
+export const listDocuments = async (req, res, next) => {
+  try {
+    const { companyId } = req.user;
+    if (!companyId) {
+      return res.status(409).json({ message: "Set up your company workspace before viewing documents." });
+    }
+
+    const documents = await Document.find({ companyId })
+      .select("originalName sourceType size status errorMessage chunkCount createdAt updatedAt")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.status(200).json({ documents });
+  } catch (error) {
+    next(error);
   }
 };

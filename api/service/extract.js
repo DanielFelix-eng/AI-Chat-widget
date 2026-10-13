@@ -26,7 +26,9 @@ async function extractPdf(buffer) {
             page.cleanup();
         }
     } finally {
-        await pdf.destroy();
+        if (pdf && typeof pdf.destroy === 'function') {
+            await pdf.destroy();
+        }
     }
 
     return pages;

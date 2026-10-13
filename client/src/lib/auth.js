@@ -1,15 +1,26 @@
 export async function authRequest(path, { method = 'POST', ...payload } = {}) {
+  // Detect if payload is a FormData instance (for file uploads)
+  const isFormData = payload instanceof FormData
+
   const options = {
     method,
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    // For FormData, don't set Content-Type so the browser sets the proper boundary
+    // For JSON payloads, set application/json
+    ...(isFormData ? {} : { headers: { 'Content-Type': 'application/json' } }),
   }
 
-  if (method !== 'GET') {
-    options.body = JSON.stringify(payload)
+  let body
+  if (isFormData) {
+    body = payload // Use FormData directly
+  } else if (method !== 'GET') {
+    body = JSON.stringify(payload)
   }
 
-  const response = await fetch(`/api/auth/${path}`, options)
+  const response = await fetch(`/api/auth/${path}`, {
+    ...options,
+    body,
+  })
   let result = {}
 
   try {
