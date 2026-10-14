@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const chatMessageSchema = new mongoose.Schema(
     {
@@ -44,4 +44,4 @@ const chatMessageSchema = new mongoose.Schema(
 
 chatMessageSchema.index({ sessionId: 1, createdAt: 1 });
 
-module.exports = mongoose.model('ChatMessage', chatMessageSchema);
+export default mongoose.model('ChatMessage', chatMessageSchema);

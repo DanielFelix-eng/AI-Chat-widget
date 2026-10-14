@@ -10,11 +10,14 @@
  import documentRoute from "./routes/document.routes.js";
  import widgetRoutes from "./routes/widget.routes.js";
  import chatRoutes from "./routes/chat.routes.js";
+ import billingRoutes from "./paystack/billing.js";
+ import webhookRoutes from "./routes/webhook.js";
 
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+app.use("/api/webhooks", webhookRoutes);
 app.use(express.json());
 app.use(cookieParser());
 app.use(cors());
@@ -23,6 +26,7 @@ app.use("/api/company", companyRoutes);
 app.use("/api", documentRoute);
 app.use("/api/chat", chatRoutes);
 app.use("/api/widget", widgetRoutes);
+app.use("/api/billing", billingRoutes);
 
 app.get("/widget.js", (_req, res) => {
   res.sendFile(fileURLToPath(new URL("./widget.js", import.meta.url)));

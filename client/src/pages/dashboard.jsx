@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   AlertCircle,
   ArrowDownRight,
@@ -10,6 +10,7 @@ import {
   ChevronDown,
   CircleHelp,
   Clock3,
+  CreditCard,
   FileText,
   LoaderCircle,
   LayoutDashboard,
@@ -25,9 +26,11 @@ import {
   UsersRound,
   X,
 } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Label } from 'recharts'
 import KnowledgeBase from './knowledgebase.jsx'
 import AssistantSettings from './assistantSettings.jsx'
 import Chat from './chat.jsx'
+import BillingPage from './billing.jsx'
 import './dashboard.css'
 
 const navigation = [
@@ -36,6 +39,7 @@ const navigation = [
   { label: 'Chat', icon: MessagesSquare },
   { label: 'Knowledge base', icon: FileText },
   { label: 'AI assistant', icon: Bot },
+  { label: 'Plans & billing', icon: CreditCard },
 ]
 
 const DEFAULT_WORKSPACE = {
@@ -164,8 +168,6 @@ const conversations = [
   { initials: 'TK', name: 'Taylor Kim', subject: 'Can I change my subscription?', time: '1 hr ago', status: 'Needs reply', color: 'lavender' },
 ]
 
-const activity = [24, 36, 30, 48, 42, 57, 44, 66, 53, 73, 61, 82, 68, 91]
-
 function Dashboard({ navigate }) {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -173,6 +175,16 @@ function Dashboard({ navigate }) {
   const [company, setCompany] = useState(null)
   const [companyLoaded, setCompanyLoaded] = useState(false)
   const [companyError, setCompanyError] = useState('')
+  const [activity, setActivity] = useState([])
+  const [period, setPeriod] = useState('14d')
+  const [metrics, setMetrics] = useState(null)
+
+  const updateCompanyPlan = useCallback((planKey) => {
+    setCompany((current) => current ? {
+      ...current,
+      widgetConfig: { ...current.widgetConfig, plan: planKey },
+    } : current)
+  }, [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -204,6 +216,52 @@ function Dashboard({ navigate }) {
 
     return () => controller.abort()
   }, [navigate])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    fetch('/api/chat/activity?period=' + period, { credentials: 'include', signal: controller.signal })
+      .then(async (response) => {
+        let result
+        try {
+          result = await response.json()
+        } catch {
+          throw new Error('The server returned an unreadable response.')
+        }
+        if (controller.signal.aborted) return
+        setActivity(result.activity.map((count, index) => ({ count, day: `Day ${index + 1}` })))
+      })
+      .catch((requestError) => {
+        if (requestError.name !== 'AbortError' && !controller.signal.aborted) {
+          console.error('Failed to fetch activity:', requestError.message)
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) controller.abort()
+      })
+  }, [period])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    fetch('/api/chat/metrics?period=' + period, { credentials: 'include', signal: controller.signal })
+      .then(async (response) => {
+        let result
+        try {
+          result = await response.json()
+        } catch {
+          throw new Error('The server returned an unreadable response.')
+        }
+        if (controller.signal.aborted) return
+        setMetrics(result)
+      })
+      .catch((requestError) => {
+        if (requestError.name !== 'AbortError' && !controller.signal.aborted) {
+          console.error('Failed to fetch metrics:', requestError.message)
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) controller.abort()
+      })
+  }, [period])
 
   const selectPage = (label) => {
     setActivePage(label)
@@ -259,7 +317,7 @@ function Dashboard({ navigate }) {
             <span className="plan-sparkle"><Sparkles size={15} /></span>
             <strong className="sidebar-link-label">Make more room to grow</strong>
             <p className="sidebar-link-label">Explore a plan that fits your team.</p>
-            <button type="button" className="plan-button">Explore plans <ArrowUpRight size={14} /></button>
+            <button type="button" className="plan-button" onClick={() => selectPage('Plans & billing')}>Explore plans <ArrowUpRight size={14} /></button>
           </div>
           <button className="sidebar-link" type="button" onClick={() => selectPage('Settings')} title={collapsed ? 'Settings' : undefined}>
             <Settings2 size={18} strokeWidth={1.8} /><span className="sidebar-link-label">Settings</span>
@@ -307,6 +365,8 @@ function Dashboard({ navigate }) {
             <div className="workspace-loading" role="status"><LoaderCircle className="workspace-spin" size={20} /> Loading workspace…</div>
           ) : activePage === 'Workspace' ? (
             <WorkspacePage company={company} onSaved={(savedCompany) => { setCompany(savedCompany); setCompanyError('') }} />
+          ) : activePage === 'Plans & billing' ? (
+            <BillingPage currentPlan={company?.widgetConfig?.plan || 'free'} onPlanActivated={updateCompanyPlan} />
           ) : activePage === 'Knowledge base' ? <KnowledgeBase /> : activePage === 'AI assistant' ? <AssistantSettings /> : activePage === 'Chat' ? <Chat /> : (
             <>
           <div className="dashboard-heading-row">
@@ -345,29 +405,63 @@ function Dashboard({ navigate }) {
             <article className="dashboard-panel activity-panel">
               <div className="panel-heading">
                 <div><h2>Conversation activity</h2><p>Conversation volume over the last 14 days</p></div>
-                <button className="period-selector" type="button">Last 14 days <ChevronDown size={14} /></button>
+                <button className="period-selector" type="button" onClick={() => setPeriod((p) => p === '14d' ? '7d' : p === '7d' ? '30d' : '14d')}>Last <span>{period === '7d' ? '7' : period === '30d' ? '30' : '14'} days</span> <ChevronDown size={14} /></button>
               </div>
               <div className="activity-chart" aria-label="Conversation activity chart">
-                <div className="chart-grid">
-                  {[100, 75, 50, 25].map((value) => <div className="chart-gridline" key={value}><span>{value}</span></div>)}
-                </div>
-                <div className="chart-bars">
-                  {activity.map((value, index) => <div className="chart-bar-wrap" key={`${value}-${index}`}><span className={`chart-bar${index === activity.length - 1 ? ' latest' : ''}`} style={{ height: `${value}%` }} /></div>)}
-                </div>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={activity} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                    <XAxis dataKey="day" />
+                    <YAxis tick={{ fontSize: 10 }} />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="count" fill="#8884d8" radius={4} />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
-              <div className="chart-labels"><span>Sep 29</span><span>Oct 3</span><span>Oct 7</span><span>Oct 12</span></div>
             </article>
 
-            <article className="dashboard-panel assistant-panel">
+<article className="dashboard-panel assistant-panel">
               <div className="panel-heading">
                 <div><h2>Your AI assistant</h2><p>A quick look at how it’s doing</p></div>
-                <span className="assistant-live"><i /> Live</span>
               </div>
-              <div className="assistant-score">
-                <div className="score-ring"><span><strong>82<span>%</span></strong><small>resolved</small></span></div>
-                <div className="score-copy"><strong>Doing great!</strong><p>Your assistant handled 82% of conversations without needing a human.</p><span><ArrowUpRight size={13} /> 4.6% this month</span></div>
+              {metrics ? (
+                <div className="assistant-score">
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                      <Pie
+                        dataKey="value"
+                        cx="50%"
+                        cy="50%"
+                        r={80}
+                        labelLine={{ length: 8 }}
+                        data={[
+                          { name: 'Resolved', value: metrics.resolutionRate, fill: '#8884d8' },
+                          { name: 'Fallback', value: metrics.fallbackRate, fill: '#f56565' },
+                        ]}
+                      />
+                      <Label
+                        angle={0}
+                        position="inside"
+                        color="#fff"
+                        fontSize={12}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="assistant-score">
+                  <div className="score-ring"><span><strong>82<span>%</span></strong><small>resolved</small></span></div>
+                  <div className="score-copy">
+                    <strong>Doing great!</strong>
+                    <p>Your assistant handled 82% of conversations without needing a human.</p>
+                    <span><ArrowUpRight size={13} /> 4.6% this month</span>
+                  </div>
+                </div>
+              )}
+              <div className="assistant-panel-footer">
+                <span><span className="mini-status-dot" /> Answering customers</span>
+                <button type="button">View assistant <ArrowUpRight size={13} /></button>
               </div>
-              <div className="assistant-panel-footer"><span><span className="mini-status-dot" /> Answering customers</span><button type="button">View assistant <ArrowUpRight size={13} /></button></div>
             </article>
           </section>
 
