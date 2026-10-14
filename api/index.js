@@ -12,15 +12,18 @@
  import chatRoutes from "./routes/chat.routes.js";
  import billingRoutes from "./paystack/billing.js";
  import webhookRoutes from "./routes/webhook.js";
+ import { dashboardCors, widgetCors } from "./db/cors.js"
 
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+
 app.use("/api/webhooks", webhookRoutes);
+app.use("/api/widget", widgetCors, express.json(), widgetRoutes)
 app.use(express.json());
 app.use(cookieParser());
-app.use(cors());
+app.use(dashboardCors);
 app.use("/api/auth", authRoute);
 app.use("/api/company", companyRoutes);
 app.use("/api", documentRoute);
@@ -34,6 +37,13 @@ app.get("/widget.js", (_req, res) => {
 
 app.get("/", (req, res) => {
   res.send("Hello, World!");
+});
+app.use((err, req, res, next) => {
+  if (err.message === "Origin not allowed by CORS") {
+    return res.status(403).json({ message: err.message });
+  }
+  console.error(err);
+  res.status(err.status || 500).json({ message: "Server error" });
 });
 
 const startServer = async () => {
