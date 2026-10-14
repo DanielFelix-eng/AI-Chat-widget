@@ -1,9 +1,17 @@
 import cors from "cors";
 
-const allowedOrigins = (process.env.CORS_ORIGINS || "")
+const configuredOrigins = (process.env.CORS_ORIGINS || "")
   .split(",")
   .map((o) => o.trim().replace(/\/$/, ""))
   .filter(Boolean);
+
+const allowedOrigins = [
+  ...new Set([
+    ...configuredOrigins,
+    process.env.RENDER_EXTERNAL_URL,
+    process.env.CLIENT_URL,
+  ].filter(Boolean).map((origin) => origin.replace(/\/$/, ""))),
+];
 
 // Strict policy for your own dashboard
 export const dashboardCors = cors({

@@ -330,6 +330,37 @@
   text-align: center;
 }
 
+.test-chat-eyebrow {
+  font-size: 10px;
+}
+
+.test-chat-heading p {
+  font-size: 12px;
+}
+
+.test-chat-reset,
+.test-chat-identity strong,
+.test-chat-welcome p,
+.test-chat-message-content,
+.test-chat-composer input {
+  font-size: 12px;
+}
+
+.test-chat-identity small,
+.test-chat-sources,
+.test-chat-footnote {
+  font-size: 10px;
+}
+
+.test-chat-preview-label {
+  font-size: 9px;
+}
+
+.test-chat-thinking,
+.test-chat-error {
+  font-size: 11px;
+}
+
 @media (max-width: 560px) {
   .test-chat-heading {
     align-items: flex-start;

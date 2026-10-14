@@ -687,6 +687,51 @@
   animation: assistant-spin 850ms linear infinite;
 }
 
+.assistant-settings-eyebrow {
+  font-size: 9px;
+}
+
+.assistant-settings-heading p {
+  font-size: 12px;
+}
+
+.assistant-enabled-pill,
+.assistant-card-heading strong,
+.assistant-field,
+.assistant-field input:not([type="color"]),
+.assistant-field textarea,
+.assistant-color-picker,
+.assistant-position-field legend,
+.assistant-toggle strong,
+.assistant-alert,
+.assistant-save-button {
+  font-size: 11px;
+}
+
+.assistant-card-heading small,
+.assistant-field > small,
+.assistant-position-option,
+.assistant-toggle small,
+.install-instructions,
+.install-instructions code,
+.install-note {
+  font-size: 10px;
+}
+
+.widget-preview-header strong {
+  font-size: 9px;
+}
+
+.widget-preview-header small,
+.widget-preview-window > p,
+.widget-preview-input {
+  font-size: 8px;
+}
+
+.assistant-settings-loading {
+  font-size: 12px;
+}
+
 @keyframes assistant-spin {
   to { transform: rotate(360deg); }
 }

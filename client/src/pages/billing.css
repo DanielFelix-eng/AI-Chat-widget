@@ -414,6 +414,41 @@
   animation: billing-spin 1s linear infinite;
 }
 
+.billing-eyebrow,
+.billing-current-plan span,
+.billing-phone-input span {
+  font-size: 10px;
+}
+
+.billing-heading p,
+.billing-plan-description,
+.billing-checkout-form label,
+.billing-phone-input input,
+.billing-payment-status,
+.billing-message {
+  font-size: 12px;
+}
+
+.billing-current-plan strong,
+.billing-price span,
+.billing-checkout-summary small,
+.billing-checkout-heading p,
+.billing-secure-note {
+  font-size: 11px;
+}
+
+.billing-popular-tag,
+.billing-plan-card ul,
+.billing-back-button,
+.billing-payment-status button {
+  font-size: 10px;
+}
+
+.billing-select-button,
+.billing-pay-button {
+  font-size: 12px;
+}
+
 @keyframes billing-spin {
   to { transform: rotate(360deg); }
 }

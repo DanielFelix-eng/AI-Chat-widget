@@ -74,24 +74,87 @@ function StoryPanel() {
 
 function App() {
   const [route, setRoute] = useState(currentRoute)
+  const [dashboardAuthStatus, setDashboardAuthStatus] = useState(() => currentRoute() === '/dashboard' ? 'checking' : 'idle')
+  const [authCheckAttempt, setAuthCheckAttempt] = useState(0)
 
   useEffect(() => {
-    const syncRoute = () => setRoute(currentRoute())
+    const syncRoute = () => {
+      const nextRoute = currentRoute()
+      if (nextRoute === '/dashboard') setDashboardAuthStatus('checking')
+      setRoute(nextRoute)
+    }
     window.addEventListener('popstate', syncRoute)
     return () => window.removeEventListener('popstate', syncRoute)
   }, [])
 
   const navigate = useCallback((path, { replace = false } = {}) => {
     window.history[replace ? 'replaceState' : 'pushState']({}, '', path)
+    if (path === '/dashboard') setDashboardAuthStatus('checking')
     setRoute(currentRoute())
   }, [])
+
+  useEffect(() => {
+    if (route !== '/dashboard') return undefined
+
+    const controller = new AbortController()
+
+    fetch('/api/auth/verifyToken', {
+      credentials: 'include',
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (controller.signal.aborted) return
+        if (response.status === 401) {
+          navigate('/login', { replace: true })
+          return
+        }
+        if (!response.ok) {
+          throw new Error('Could not verify your session. Please try again.')
+        }
+        setDashboardAuthStatus('authenticated')
+      })
+      .catch((error) => {
+        if (error.name !== 'AbortError' && !controller.signal.aborted) {
+          setDashboardAuthStatus('error')
+        }
+      })
+
+    return () => controller.abort()
+  }, [route, authCheckAttempt, navigate])
 
   const rememberEmail = (email) => {
     window.sessionStorage.setItem('auth-email', email)
   }
 
   if (route === '/dashboard') {
-    return <Dashboard navigate={navigate} />
+    if (dashboardAuthStatus === 'authenticated') {
+      return <Dashboard navigate={navigate} />
+    }
+
+    if (dashboardAuthStatus === 'error') {
+      return (
+        <main className="route-guard">
+          <section className="route-guard-card" role="alert">
+            <h1>Could not verify your session</h1>
+            <p>Your dashboard is protected and hasn’t been loaded. Check your connection and try again.</p>
+            <div className="route-guard-actions">
+              <button type="button" onClick={() => {
+                setDashboardAuthStatus('checking')
+                setAuthCheckAttempt((attempt) => attempt + 1)
+              }}>Try again</button>
+              <button type="button" className="secondary" onClick={() => navigate('/login', { replace: true })}>Go to login</button>
+            </div>
+          </section>
+        </main>
+      )
+    }
+
+    return (
+      <main className="route-guard" role="status" aria-live="polite">
+        <span className="route-guard-spinner" aria-hidden="true" />
+        <span>Verifying your session…</span>
+      </main>
+    )
   }
 
   let page

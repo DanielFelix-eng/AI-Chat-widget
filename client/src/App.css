@@ -2,6 +2,77 @@
   min-height: 100vh;
 }
 
+.route-guard {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;
+  color: #657480;
+  background: #f7f9fb;
+  font-size: 13px;
+}
+
+.route-guard-spinner {
+  width: 25px;
+  height: 25px;
+  border: 3px solid #dcecf1;
+  border-top-color: #45b9da;
+  border-radius: 50%;
+  animation: route-guard-spin 800ms linear infinite;
+}
+
+.route-guard-card {
+  width: min(100%, 420px);
+  padding: 26px;
+  border: 1px solid #e6ebef;
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 0 8px 30px rgb(23 43 57 / 6%);
+}
+
+.route-guard-card h1 {
+  margin: 0;
+  color: #1d2c38;
+  font-size: 19px;
+}
+
+.route-guard-card p {
+  margin: 10px 0 20px;
+  color: #7b8891;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.route-guard-actions {
+  display: flex;
+  gap: 9px;
+}
+
+.route-guard-actions button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid #69c9e8;
+  border-radius: 7px;
+  color: #153743;
+  background: #69d0ee;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.route-guard-actions button.secondary {
+  border-color: #e1e8ea;
+  color: #53646e;
+  background: #fff;
+}
+
+@keyframes route-guard-spin {
+  to { transform: rotate(360deg); }
+}
+
 .auth-page {
   min-height: 100vh;
   display: grid;

@@ -3,7 +3,6 @@ import {
   AlertCircle,
   ArrowDownRight,
   ArrowUpRight,
-  Bell,
   Bot,
   Building2,
   Check,
@@ -20,13 +19,12 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
-  Search,
   Settings2,
   Sparkles,
   UsersRound,
   X,
 } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Label } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, CartesianGrid, Cell } from 'recharts'
 import KnowledgeBase from './knowledgebase.jsx'
 import AssistantSettings from './assistantSettings.jsx'
 import Chat from './chat.jsx'
@@ -168,8 +166,20 @@ const conversations = [
   { initials: 'TK', name: 'Taylor Kim', subject: 'Can I change my subscription?', time: '1 hr ago', status: 'Needs reply', color: 'lavender' },
 ]
 
+function ActivityTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+
+  return (
+    <div className="chart-tooltip">
+      <strong>{label}</strong>
+      <span><i /> {payload[0].value} conversations</span>
+    </div>
+  )
+}
+
 function Dashboard({ navigate }) {
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(true)
+  const [sidebarHovered, setSidebarHovered] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [activePage, setActivePage] = useState('Overview')
   const [company, setCompany] = useState(null)
@@ -228,7 +238,16 @@ function Dashboard({ navigate }) {
           throw new Error('The server returned an unreadable response.')
         }
         if (controller.signal.aborted) return
-        setActivity(result.activity.map((count, index) => ({ count, day: `Day ${index + 1}` })))
+        const today = new Date()
+        const lastDayOffset = result.activity.length - 1
+        setActivity(result.activity.map((count, index) => {
+          const date = new Date(today)
+          date.setDate(today.getDate() - (lastDayOffset - index))
+          return {
+            count,
+            day: date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+          }
+        }))
       })
       .catch((requestError) => {
         if (requestError.name !== 'AbortError' && !controller.signal.aborted) {
@@ -269,7 +288,7 @@ function Dashboard({ navigate }) {
   }
 
   return (
-    <main className={`dashboard-shell${collapsed ? ' sidebar-collapsed' : ''}${mobileOpen ? ' mobile-nav-open' : ''}`}>
+    <main className={`dashboard-shell${collapsed ? ' sidebar-collapsed' : ''}${sidebarHovered ? ' sidebar-hovered' : ''}${mobileOpen ? ' mobile-nav-open' : ''}`}>
       {mobileOpen && (
         <button
           className="dashboard-backdrop"
@@ -279,7 +298,12 @@ function Dashboard({ navigate }) {
         />
       )}
 
-      <aside className="dashboard-sidebar" aria-label="Main navigation">
+      <aside
+        className="dashboard-sidebar"
+        aria-label="Main navigation"
+        onMouseEnter={() => setSidebarHovered(true)}
+        onMouseLeave={() => setSidebarHovered(false)}
+      >
         <div className="dashboard-brand">
           <span className="dashboard-brand-icon"><MessagesSquare size={19} strokeWidth={2.2} /></span>
           <span className="dashboard-brand-name">AI Chat<span>.</span></span>
@@ -301,7 +325,7 @@ function Dashboard({ navigate }) {
               className={`sidebar-link${activePage === label ? ' active' : ''}`}
               type="button"
               key={label}
-              title={collapsed ? label : undefined}
+              title={collapsed && !sidebarHovered ? label : undefined}
               aria-current={activePage === label ? 'page' : undefined}
               onClick={() => selectPage(label)}
             >
@@ -319,10 +343,10 @@ function Dashboard({ navigate }) {
             <p className="sidebar-link-label">Explore a plan that fits your team.</p>
             <button type="button" className="plan-button" onClick={() => selectPage('Plans & billing')}>Explore plans <ArrowUpRight size={14} /></button>
           </div>
-          <button className="sidebar-link" type="button" onClick={() => selectPage('Settings')} title={collapsed ? 'Settings' : undefined}>
+          <button className="sidebar-link" type="button" onClick={() => selectPage('Settings')} title={collapsed && !sidebarHovered ? 'Settings' : undefined}>
             <Settings2 size={18} strokeWidth={1.8} /><span className="sidebar-link-label">Settings</span>
           </button>
-          <button className="sidebar-link" type="button" onClick={() => selectPage('Help center')} title={collapsed ? 'Help center' : undefined}>
+          <button className="sidebar-link" type="button" onClick={() => selectPage('Help center')} title={collapsed && !sidebarHovered ? 'Help center' : undefined}>
             <CircleHelp size={18} strokeWidth={1.8} /><span className="sidebar-link-label">Help center</span>
           </button>
           <div className="sidebar-user">
@@ -348,9 +372,7 @@ function Dashboard({ navigate }) {
             <strong className="topbar-current">{activePage}</strong>
           </div>
           <div className="topbar-actions">
-            <button className="topbar-search" type="button"><Search size={16} /><span>Search</span><kbd>⌘ K</kbd></button>
-            <button className="notification-button" type="button" aria-label="Notifications"><Bell size={18} /><i /></button>
-            <button className="topbar-user" type="button" aria-label="Account menu"><span className="user-avatar">F</span><ChevronDown size={14} /></button>
+            <button className="topbar-user" type="button" aria-label="Open workspace" title="Open workspace" onClick={() => selectPage('Workspace')}><span className="user-avatar">F</span><ChevronDown size={14} /></button>
           </div>
         </header>
 
@@ -404,17 +426,35 @@ function Dashboard({ navigate }) {
           <section className="dashboard-panels">
             <article className="dashboard-panel activity-panel">
               <div className="panel-heading">
-                <div><h2>Conversation activity</h2><p>Conversation volume over the last 14 days</p></div>
+                <div><h2>Conversation activity</h2><p>Conversation volume over the last {period === '7d' ? '7' : period === '30d' ? '30' : '14'} days</p></div>
                 <button className="period-selector" type="button" onClick={() => setPeriod((p) => p === '14d' ? '7d' : p === '7d' ? '30d' : '14d')}>Last <span>{period === '7d' ? '7' : period === '30d' ? '30' : '14'} days</span> <ChevronDown size={14} /></button>
               </div>
-              <div className="activity-chart" aria-label="Conversation activity chart">
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={activity} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                    <XAxis dataKey="day" />
-                    <YAxis tick={{ fontSize: 10 }} />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="count" fill="#8884d8" radius={4} />
+              <div className="activity-chart" role="img" aria-label="Bar chart showing conversation volume over time">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={activity} margin={{ top: 12, right: 8, left: -18, bottom: 0 }} barCategoryGap="28%">
+                    <CartesianGrid vertical={false} stroke="#edf2f5" strokeDasharray="3 5" />
+                    <XAxis
+                      dataKey="day"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#85939c', fontSize: 11 }}
+                      tickMargin={10}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#9aa5ac', fontSize: 10 }}
+                      tickMargin={8}
+                      width={42}
+                    />
+                    <Tooltip content={<ActivityTooltip />} cursor={{ fill: '#eef9fc' }} />
+                    <Bar dataKey="count" name="Conversations" radius={[5, 5, 1, 1]} maxBarSize={34} animationDuration={650}>
+                      {activity.map((item, index) => (
+                        <Cell key={`${item.day}-${index}`} fill={index === activity.length - 1 ? '#259fc1' : '#8ed9ec'} />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -425,28 +465,39 @@ function Dashboard({ navigate }) {
                 <div><h2>Your AI assistant</h2><p>A quick look at how it’s doing</p></div>
               </div>
               {metrics ? (
-                <div className="assistant-score">
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                      <Pie
-                        dataKey="value"
-                        cx="50%"
-                        cy="50%"
-                        r={80}
-                        labelLine={{ length: 8 }}
-                        data={[
-                          { name: 'Resolved', value: metrics.resolutionRate, fill: '#8884d8' },
-                          { name: 'Fallback', value: metrics.fallbackRate, fill: '#f56565' },
-                        ]}
-                      />
-                      <Label
-                        angle={0}
-                        position="inside"
-                        color="#fff"
-                        fontSize={12}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
+                <div className="assistant-chart-wrap">
+                  <div className="assistant-donut-chart" role="img" aria-label={`Resolution rate ${metrics.resolutionRate} percent, fallback rate ${metrics.fallbackRate} percent`}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          dataKey="value"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={57}
+                          outerRadius={77}
+                          paddingAngle={3}
+                          stroke="none"
+                          isAnimationActive
+                          animationDuration={650}
+                          data={[
+                            { name: 'Resolved', value: metrics.resolutionRate },
+                            { name: 'Fallback', value: metrics.fallbackRate },
+                          ]}
+                        >
+                          <Cell fill="#38b7d7" />
+                          <Cell fill="#e8a16e" />
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="assistant-donut-center" aria-hidden="true">
+                      <strong>{metrics.resolutionRate}<span>%</span></strong>
+                      <small>resolved</small>
+                    </div>
+                  </div>
+                  <div className="assistant-chart-legend">
+                    <span><i className="resolved" /> Resolved <strong>{metrics.resolutionRate}%</strong></span>
+                    <span><i className="fallback" /> Fallback <strong>{metrics.fallbackRate}%</strong></span>
+                  </div>
                 </div>
               ) : (
                 <div className="assistant-score">

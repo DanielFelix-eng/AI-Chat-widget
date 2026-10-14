@@ -193,7 +193,8 @@ export const forgotPassword = async (req, res) => {
         user.resetPasswordToken = token;
         user.resetPasswordExpire = resetTokenExpires;
         await user.save();
-        const resetUrl = new URL('/reset-password', process.env.CLIENT_URL || 'http://localhost:5173');
+        const appUrl = process.env.CLIENT_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:5173';
+        const resetUrl = new URL('/reset-password', appUrl);
         resetUrl.searchParams.set('token', token);
         await sendEmail({
             to: user.email,
@@ -228,7 +229,8 @@ export const resetPassword = async (req, res) => {
         user.resetPasswordToken = undefined;
         user.resetPasswordExpire = undefined;
         await user.save();
-        const loginUrl = new URL('/login', process.env.CLIENT_URL || 'http://localhost:5173').toString();
+        const appUrl = process.env.CLIENT_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:5173';
+        const loginUrl = new URL('/login', appUrl).toString();
         await sendEmail({
             to: user.email,
             subject: 'Password reset successful',

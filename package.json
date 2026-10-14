@@ -2,26 +2,26 @@
   "type": "module",
   "scripts": {
     "start": "node api/index.js",
-    "dev": "nodemon api/index.js"
+    "dev": "nodemon api/index.js",
+    "build": "npm --prefix client run build"
+  },
+  "engines": {
+    "node": ">=20.19.0"
   },
   "dependencies": {
     "@getbrevo/brevo": "^6.0.3",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "fs": "^0.0.1-security",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.9.4",
     "multer": "^2.4.0",
-    "nodemon": "^3.1.14",
     "openai": "^7.32.0",
-    "path": "^0.12.7",
-    "pdfjs-dist": "^6.4.299",
-    "scripts": "^0.1.0"
+    "pdfjs-dist": "^6.4.299"
   },
   "devDependencies": {
-    "bcrypt": "^6.0.0",
-    "crypto": "^1.0.1"
+    "nodemon": "^3.1.14"
   }
 }

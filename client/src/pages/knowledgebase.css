@@ -415,6 +415,34 @@
   white-space: nowrap;
 }
 
+.knowledge-eyebrow {
+  font-size: 9px;
+}
+
+.knowledge-header p,
+.knowledge-documents-heading p {
+  font-size: 12px;
+}
+
+.knowledge-count,
+.knowledge-dropzone-select strong,
+.knowledge-upload-button,
+.knowledge-message,
+.knowledge-empty > strong,
+.knowledge-document-info strong {
+  font-size: 11px;
+}
+
+.knowledge-upload-card > p,
+.knowledge-dropzone-select small,
+.knowledge-empty,
+.knowledge-document-info small,
+.knowledge-status,
+.knowledge-chunk-count,
+.knowledge-error-detail {
+  font-size: 10px;
+}
+
 .knowledge-spin {
   animation: knowledge-spin 850ms linear infinite;
 }
