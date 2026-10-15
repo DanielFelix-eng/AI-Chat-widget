@@ -3,7 +3,7 @@
   "scripts": {
     "start": "node api/index.js",
     "dev": "nodemon api/index.js",
-    "build": "npm --prefix client run build"
+   "build": "npm --prefix client install --include=dev && npm --prefix client run build"
   },
   "engines": {
     "node": ">=20.19.0"
