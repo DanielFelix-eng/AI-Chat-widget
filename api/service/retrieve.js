@@ -65,6 +65,7 @@ export async function retrieveChunks(companyId, question) {
     const names = new Map(documents.map((document) => [String(document._id), document.originalName]));
 
     return relevant.map((result) => ({
+        chunkId: result._id,
         text: result.text,
         score: result.score,
         page: result.metadata?.page ?? null,

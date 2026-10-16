@@ -38,6 +38,11 @@ const chatMessageSchema = new mongoose.Schema(
             type: Boolean,
             default: false,
         },
+        responseTimeMs: {
+            type: Number,
+            min: 0,
+            default: null,
+        },
     },
     { timestamps: true }
 );

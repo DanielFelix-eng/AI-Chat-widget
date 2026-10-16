@@ -5,6 +5,7 @@ import './chat.css'
 const DEFAULT_GREETING = 'Hi! How can I help you today?'
 
 function Chat() {
+  const [visitorId] = useState(() => window.crypto.randomUUID())
   const [assistant, setAssistant] = useState({ name: 'Support assistant', greeting: DEFAULT_GREETING })
   const [messages, setMessages] = useState([])
   const [inputValue, setInputValue] = useState('')
@@ -73,6 +74,7 @@ function Chat() {
         body: JSON.stringify({
           message,
           history: messages.map(({ role, content }) => ({ role, content })),
+          visitorId,
         }),
       })
       let result

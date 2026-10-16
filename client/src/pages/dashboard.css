@@ -877,6 +877,19 @@
   margin-top: 13px;
 }
 
+.overview-empty-state {
+  min-height: 174px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  color: #87939e;
+  font-size: 11px;
+  line-height: 1.7;
+  text-align: center;
+}
+
 .chart-tooltip {
   min-width: 132px;
   display: flex;
@@ -1151,12 +1164,7 @@
   color: inherit;
   background: transparent;
   text-align: left;
-  cursor: pointer;
-  transition: background 140ms ease;
-}
-
-.conversation-row:hover {
-  background: #fbfcfd;
+  cursor: default;
 }
 
 .conversation-avatar {
@@ -1246,17 +1254,6 @@
   font-size: 8px;
   text-align: right;
   white-space: nowrap;
-}
-
-.conversation-open {
-  flex: 0 0 auto;
-  color: #a4afb5;
-  opacity: 0;
-  transition: opacity 120ms ease;
-}
-
-.conversation-row:hover .conversation-open {
-  opacity: 1;
 }
 
 .mobile-view-all {

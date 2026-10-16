@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const chatSessionSchema = new mongoose.Schema(
     {
@@ -8,10 +8,15 @@ const chatSessionSchema = new mongoose.Schema(
             required: true,
             index: true,
         },
-        // Anonymous ID generated client-side (localStorage) 
+        // Anonymous ID generated client-side for each chat session.
         visitorId: {
             type: String,
             required: true,
+            index: true,
+        },
+        lastMessageAt: {
+            type: Date,
+            default: Date.now,
             index: true,
         },
         status: {
@@ -29,5 +34,6 @@ const chatSessionSchema = new mongoose.Schema(
 );
 
 chatSessionSchema.index({ companyId: 1, createdAt: -1 });
+chatSessionSchema.index({ companyId: 1, visitorId: 1 }, { unique: true });
 
-module.exports = mongoose.model('ChatSession', chatSessionSchema);
+export default mongoose.model('ChatSession', chatSessionSchema);

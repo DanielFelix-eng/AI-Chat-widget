@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   AlertCircle,
-  ArrowDownRight,
   ArrowUpRight,
   Bot,
   Building2,
@@ -21,7 +20,6 @@ import {
   Plus,
   Settings2,
   Sparkles,
-  UsersRound,
   X,
 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, CartesianGrid, Cell } from 'recharts'
@@ -159,13 +157,6 @@ function WorkspacePage({ company, onSaved }) {
   )
 }
 
-const conversations = [
-  { initials: 'JM', name: 'Jordan Miller', subject: 'Question about your return policy', time: '2 min ago', status: 'Needs reply', color: 'blue' },
-  { initials: 'SC', name: 'Sofia Chen', subject: 'Where can I track my order?', time: '18 min ago', status: 'AI resolved', color: 'peach' },
-  { initials: 'AR', name: 'Alex Rivera', subject: 'Looking for a product recommendation', time: '46 min ago', status: 'AI resolved', color: 'green' },
-  { initials: 'TK', name: 'Taylor Kim', subject: 'Can I change my subscription?', time: '1 hr ago', status: 'Needs reply', color: 'lavender' },
-]
-
 function ActivityTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
 
@@ -177,6 +168,32 @@ function ActivityTooltip({ active, payload, label }) {
   )
 }
 
+function formatResponseTime(milliseconds) {
+  if (milliseconds == null) return '—'
+  if (milliseconds < 1000) return `${milliseconds} ms`
+  if (milliseconds < 60_000) return `${(milliseconds / 1000).toFixed(1)} s`
+  const minutes = Math.floor(milliseconds / 60_000)
+  const seconds = Math.round((milliseconds % 60_000) / 1000)
+  return `${minutes}m ${seconds}s`
+}
+
+function formatActivityDate(dateKey) {
+  return new Date(`${dateKey}T12:00:00Z`).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
+function formatMessageTime(dateValue) {
+  const messageDate = new Date(dateValue)
+  const elapsedMinutes = Math.max(0, Math.floor((Date.now() - messageDate.getTime()) / 60_000))
+  if (elapsedMinutes < 1) return 'Just now'
+  if (elapsedMinutes < 60) return `${elapsedMinutes} min ago`
+  const elapsedHours = Math.floor(elapsedMinutes / 60)
+  if (elapsedHours < 24) return `${elapsedHours} hr ago`
+  return messageDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
 function Dashboard({ navigate }) {
   const [collapsed, setCollapsed] = useState(true)
   const [sidebarHovered, setSidebarHovered] = useState(false)
@@ -186,8 +203,13 @@ function Dashboard({ navigate }) {
   const [companyLoaded, setCompanyLoaded] = useState(false)
   const [companyError, setCompanyError] = useState('')
   const [activity, setActivity] = useState([])
+  const [activityPeriod, setActivityPeriod] = useState(null)
   const [period, setPeriod] = useState('14d')
   const [metrics, setMetrics] = useState(null)
+  const [activityError, setActivityError] = useState('')
+  const [metricsError, setMetricsError] = useState('')
+  const [recentConversations, setRecentConversations] = useState([])
+  const [recentError, setRecentError] = useState('')
 
   const updateCompanyPlan = useCallback((planKey) => {
     setCompany((current) => current ? {
@@ -237,26 +259,21 @@ function Dashboard({ navigate }) {
         } catch {
           throw new Error('The server returned an unreadable response.')
         }
+        if (!response.ok) throw new Error(result.message || 'Could not load conversation activity.')
         if (controller.signal.aborted) return
-        const today = new Date()
-        const lastDayOffset = result.activity.length - 1
-        setActivity(result.activity.map((count, index) => {
-          const date = new Date(today)
-          date.setDate(today.getDate() - (lastDayOffset - index))
-          return {
-            count,
-            day: date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-          }
-        }))
+        setActivity(result.activity.map(({ date, count }) => ({
+          count,
+          day: formatActivityDate(date),
+        })))
+        setActivityPeriod(result.period)
+        setActivityError('')
       })
       .catch((requestError) => {
         if (requestError.name !== 'AbortError' && !controller.signal.aborted) {
-          console.error('Failed to fetch activity:', requestError.message)
+          setActivityError(requestError.message || 'Could not load conversation activity.')
         }
       })
-      .finally(() => {
-        if (!controller.signal.aborted) controller.abort()
-      })
+    return () => controller.abort()
   }, [period])
 
   useEffect(() => {
@@ -269,23 +286,51 @@ function Dashboard({ navigate }) {
         } catch {
           throw new Error('The server returned an unreadable response.')
         }
+        if (!response.ok) throw new Error(result.message || 'Could not load overview metrics.')
         if (controller.signal.aborted) return
         setMetrics(result)
+        setMetricsError('')
       })
       .catch((requestError) => {
         if (requestError.name !== 'AbortError' && !controller.signal.aborted) {
-          console.error('Failed to fetch metrics:', requestError.message)
+          setMetricsError(requestError.message || 'Could not load overview metrics.')
         }
       })
-      .finally(() => {
-        if (!controller.signal.aborted) controller.abort()
-      })
+    return () => controller.abort()
   }, [period])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    fetch('/api/chat/recent', { credentials: 'include', signal: controller.signal })
+      .then(async (response) => {
+        let result
+        try {
+          result = await response.json()
+        } catch {
+          throw new Error('The server returned an unreadable response.')
+        }
+        if (!response.ok) throw new Error(result.message || 'Could not load recent conversations.')
+        if (!controller.signal.aborted) {
+          setRecentConversations(result.conversations)
+          setRecentError('')
+        }
+      })
+      .catch((requestError) => {
+        if (requestError.name !== 'AbortError' && !controller.signal.aborted) {
+          setRecentError(requestError.message || 'Could not load recent conversations.')
+        }
+      })
+    return () => controller.abort()
+  }, [])
 
   const selectPage = (label) => {
     setActivePage(label)
     setMobileOpen(false)
   }
+
+  const currentMetrics = metrics?.period === period ? metrics : null
+  const currentActivity = activityPeriod === period ? activity : []
+  const periodDays = period === '7d' ? '7' : period === '30d' ? '30' : '14'
 
   return (
     <main className={`dashboard-shell${collapsed ? ' sidebar-collapsed' : ''}${sidebarHovered ? ' sidebar-hovered' : ''}${mobileOpen ? ' mobile-nav-open' : ''}`}>
@@ -393,9 +438,9 @@ function Dashboard({ navigate }) {
             <>
           <div className="dashboard-heading-row">
             <div>
-              <div className="dashboard-date"><span className="status-dot" /> MONDAY, OCTOBER 12</div>
-              <h1>Good morning, Felix <span className="heading-wave">✳</span></h1>
-              <p>Here’s what’s happening with your support today.</p>
+              <div className="dashboard-date"><span className="status-dot" /> {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase()}</div>
+              <h1>{company?.name ? `Welcome to ${company.name}` : 'Your support overview'} <span className="heading-wave">✳</span></h1>
+              <p>Live workspace activity for the selected period.</p>
             </div>
             <button className="dashboard-primary-button" type="button" onClick={() => selectPage('Chat')}><Plus size={17} /> Test your assistant</button>
           </div>
@@ -403,25 +448,26 @@ function Dashboard({ navigate }) {
           <section className="dashboard-stats" aria-label="Support overview">
             <article className="stat-card">
               <div className="stat-card-top"><span>Total conversations</span><span className="stat-icon cyan"><MessagesSquare size={17} /></span></div>
-              <strong className="stat-value">1,284</strong>
-              <div className="stat-foot"><span className="stat-change positive"><ArrowUpRight size={13} /> 12.8%</span><span>vs. last month</span></div>
+              <strong className="stat-value">{currentMetrics ? currentMetrics.conversations.toLocaleString() : '—'}</strong>
+              <div className="stat-foot"><span>{currentMetrics ? `${currentMetrics.totalMessages.toLocaleString()} assistant replies` : 'Loading workspace data'}</span><span>last {periodDays} days</span></div>
             </article>
             <article className="stat-card">
               <div className="stat-card-top"><span>AI resolution rate</span><span className="stat-icon violet"><Sparkles size={17} /></span></div>
-              <strong className="stat-value">82.4<span className="stat-unit">%</span></strong>
-              <div className="stat-foot"><span className="stat-change positive"><ArrowUpRight size={13} /> 4.6%</span><span>vs. last month</span></div>
+              <strong className="stat-value">{currentMetrics ? <>{currentMetrics.resolutionRate}<span className="stat-unit">%</span></> : '—'}</strong>
+              <div className="stat-foot"><span>{currentMetrics ? `${currentMetrics.resolvedMessages.toLocaleString()} supported answers` : 'Loading workspace data'}</span><span>last {periodDays} days</span></div>
             </article>
             <article className="stat-card">
               <div className="stat-card-top"><span>Avg. response time</span><span className="stat-icon peach"><Clock3 size={17} /></span></div>
-              <strong className="stat-value">1m 24s</strong>
-              <div className="stat-foot"><span className="stat-change positive"><ArrowDownRight size={13} /> 8.2%</span><span>vs. last month</span></div>
+              <strong className="stat-value">{currentMetrics ? formatResponseTime(currentMetrics.averageResponseTimeMs) : '—'}</strong>
+              <div className="stat-foot"><span>{!currentMetrics ? 'Loading workspace data' : currentMetrics.averageResponseTimeMs == null ? 'No response-time data yet' : 'Across assistant replies'}</span><span>last {periodDays} days</span></div>
             </article>
             <article className="stat-card">
-              <div className="stat-card-top"><span>Customer satisfaction</span><span className="stat-icon green"><UsersRound size={17} /></span></div>
-              <strong className="stat-value">96.8<span className="stat-unit">%</span></strong>
-              <div className="stat-foot"><span className="stat-change positive"><ArrowUpRight size={13} /> 2.1%</span><span>vs. last month</span></div>
+              <div className="stat-card-top"><span>Knowledge documents</span><span className="stat-icon green"><FileText size={17} /></span></div>
+              <strong className="stat-value">{currentMetrics ? currentMetrics.knowledgeDocuments.toLocaleString() : '—'}</strong>
+              <div className="stat-foot"><span>Ready for AI answers</span><span>all time</span></div>
             </article>
           </section>
+          {metricsError && <p className="workspace-load-error" role="alert"><AlertCircle size={15} /> {metricsError}</p>}
 
           <section className="dashboard-panels">
             <article className="dashboard-panel activity-panel">
@@ -429,44 +475,47 @@ function Dashboard({ navigate }) {
                 <div><h2>Conversation activity</h2><p>Conversation volume over the last {period === '7d' ? '7' : period === '30d' ? '30' : '14'} days</p></div>
                 <button className="period-selector" type="button" onClick={() => setPeriod((p) => p === '14d' ? '7d' : p === '7d' ? '30d' : '14d')}>Last <span>{period === '7d' ? '7' : period === '30d' ? '30' : '14'} days</span> <ChevronDown size={14} /></button>
               </div>
-              <div className="activity-chart" role="img" aria-label="Bar chart showing conversation volume over time">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={activity} margin={{ top: 12, right: 8, left: -18, bottom: 0 }} barCategoryGap="28%">
-                    <CartesianGrid vertical={false} stroke="#edf2f5" strokeDasharray="3 5" />
-                    <XAxis
-                      dataKey="day"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fill: '#85939c', fontSize: 11 }}
-                      tickMargin={10}
-                      interval="preserveStartEnd"
-                    />
-                    <YAxis
-                      allowDecimals={false}
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fill: '#9aa5ac', fontSize: 10 }}
-                      tickMargin={8}
-                      width={42}
-                    />
-                    <Tooltip content={<ActivityTooltip />} cursor={{ fill: '#eef9fc' }} />
-                    <Bar dataKey="count" name="Conversations" radius={[5, 5, 1, 1]} maxBarSize={34} animationDuration={650}>
-                      {activity.map((item, index) => (
-                        <Cell key={`${item.day}-${index}`} fill={index === activity.length - 1 ? '#259fc1' : '#8ed9ec'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              {activityError ? <p className="overview-empty-state" role="alert">{activityError}</p> :
+                currentActivity.some(({ count }) => count > 0) ? (
+                  <div className="activity-chart" role="img" aria-label="Bar chart showing conversation volume over time">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={currentActivity} margin={{ top: 12, right: 8, left: -18, bottom: 0 }} barCategoryGap="28%">
+                        <CartesianGrid vertical={false} stroke="#edf2f5" strokeDasharray="3 5" />
+                        <XAxis
+                          dataKey="day"
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fill: '#85939c', fontSize: 11 }}
+                          tickMargin={10}
+                          interval="preserveStartEnd"
+                        />
+                        <YAxis
+                          allowDecimals={false}
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fill: '#9aa5ac', fontSize: 10 }}
+                          tickMargin={8}
+                          width={42}
+                        />
+                        <Tooltip content={<ActivityTooltip />} cursor={{ fill: '#eef9fc' }} />
+                        <Bar dataKey="count" name="Conversations" radius={[5, 5, 1, 1]} maxBarSize={34} animationDuration={650}>
+                          {currentActivity.map((item, index) => (
+                            <Cell key={`${item.day}-${index}`} fill={index === currentActivity.length - 1 ? '#259fc1' : '#8ed9ec'} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : <p className="overview-empty-state">No conversations recorded in this period yet. Activity appears here after a visitor sends a message.</p>}
             </article>
 
 <article className="dashboard-panel assistant-panel">
               <div className="panel-heading">
                 <div><h2>Your AI assistant</h2><p>A quick look at how it’s doing</p></div>
               </div>
-              {metrics ? (
+              {currentMetrics?.totalMessages > 0 ? (
                 <div className="assistant-chart-wrap">
-                  <div className="assistant-donut-chart" role="img" aria-label={`Resolution rate ${metrics.resolutionRate} percent, fallback rate ${metrics.fallbackRate} percent`}>
+                  <div className="assistant-donut-chart" role="img" aria-label={`Resolution rate ${currentMetrics.resolutionRate} percent, fallback rate ${currentMetrics.fallbackRate} percent`}>
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
@@ -480,8 +529,8 @@ function Dashboard({ navigate }) {
                           isAnimationActive
                           animationDuration={650}
                           data={[
-                            { name: 'Resolved', value: metrics.resolutionRate },
-                            { name: 'Fallback', value: metrics.fallbackRate },
+                            { name: 'Resolved', value: currentMetrics.resolutionRate },
+                            { name: 'Fallback', value: currentMetrics.fallbackRate },
                           ]}
                         >
                           <Cell fill="#38b7d7" />
@@ -490,25 +539,16 @@ function Dashboard({ navigate }) {
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="assistant-donut-center" aria-hidden="true">
-                      <strong>{metrics.resolutionRate}<span>%</span></strong>
+                      <strong>{currentMetrics.resolutionRate}<span>%</span></strong>
                       <small>resolved</small>
                     </div>
                   </div>
                   <div className="assistant-chart-legend">
-                    <span><i className="resolved" /> Resolved <strong>{metrics.resolutionRate}%</strong></span>
-                    <span><i className="fallback" /> Fallback <strong>{metrics.fallbackRate}%</strong></span>
+                    <span><i className="resolved" /> Resolved <strong>{currentMetrics.resolutionRate}%</strong></span>
+                    <span><i className="fallback" /> Fallback <strong>{currentMetrics.fallbackRate}%</strong></span>
                   </div>
                 </div>
-              ) : (
-                <div className="assistant-score">
-                  <div className="score-ring"><span><strong>82<span>%</span></strong><small>resolved</small></span></div>
-                  <div className="score-copy">
-                    <strong>Doing great!</strong>
-                    <p>Your assistant handled 82% of conversations without needing a human.</p>
-                    <span><ArrowUpRight size={13} /> 4.6% this month</span>
-                  </div>
-                </div>
-              )}
+              ) : <p className="overview-empty-state">{metricsError || 'Assistant metrics will appear after the first real or test chat.'}</p>}
               <div className="assistant-panel-footer">
                 <span><span className="mini-status-dot" /> Answering customers</span>
                 <button type="button">View assistant <ArrowUpRight size={13} /></button>
@@ -518,20 +558,23 @@ function Dashboard({ navigate }) {
 
           <section className="dashboard-panel conversations-panel">
             <div className="panel-heading">
-              <div><h2>Recent conversations</h2><p>Stay on top of what your customers are asking.</p></div>
+              <div><h2>Recent conversations</h2><p>Latest questions sent to your assistant.</p></div>
               <button className="view-all-button" type="button" onClick={() => selectPage('Chat')}>Try a test chat <ArrowUpRight size={14} /></button>
             </div>
-            <div className="conversation-list">
-              {conversations.map((conversation) => (
-                <button className="conversation-row" type="button" key={conversation.name}>
-                  <span className={`conversation-avatar ${conversation.color}`}>{conversation.initials}</span>
-                  <span className="conversation-person"><strong>{conversation.name}</strong><small>{conversation.subject}</small></span>
-                  <span className={`conversation-status ${conversation.status === 'Needs reply' ? 'needs-reply' : ''}`}><i />{conversation.status}</span>
-                  <span className="conversation-time">{conversation.time}</span>
-                  <ArrowUpRight className="conversation-open" size={15} />
-                </button>
-              ))}
-            </div>
+            {recentError ? <p className="overview-empty-state" role="alert">{recentError}</p> : recentConversations.length ? (
+              <div className="conversation-list">
+                {recentConversations.map((conversation) => (
+                  <div className="conversation-row" key={conversation._id}>
+                    <span className="conversation-avatar blue"><MessagesSquare size={16} /></span>
+                    <span className="conversation-person"><strong>Website visitor</strong><small>{conversation.latestMessage}</small></span>
+                    <span className="conversation-status"><i /> Received</span>
+                    <span className="conversation-time">{formatMessageTime(conversation.lastMessageAt)}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="overview-empty-state">There are no saved conversations yet. Send a test message or install the widget to start collecting real activity.</p>
+            )}
             <button className="mobile-view-all" type="button" onClick={() => selectPage('Chat')}>Try a test chat <ArrowUpRight size={14} /></button>
           </section>
 

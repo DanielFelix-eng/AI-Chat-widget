@@ -2,6 +2,8 @@ import { retrieveChunks } from '../services/chat/retrieve.js';
 import { buildContextMessage, SYSTEM_PROMPT, NO_ANSWER_MESSAGE } from '../services/chat/prompt.js';
 import { streamAnswer } from '../services/chat/llm.js';
 import ChatMessage from '../models/chatMessage.js';
+import ChatSession from '../models/chatSession.js';
+import Document from '../models/documents.js';
 
 const MAX_MESSAGE_CHARS = 2000;
 const MAX_HISTORY_MESSAGES = 10;
@@ -91,61 +93,56 @@ export const chat = async (req, res) => {
     }
 };
 
-/** Get conversation activity data - message count per day for specified period */
+function getPeriodRange(value) {
+    const daysByPeriod = { '7d': 7, '14d': 14, '30d': 30 }
+    const period = Object.hasOwn(daysByPeriod, value) ? value : '14d'
+    const days = daysByPeriod[period]
+    const end = new Date()
+    end.setUTCHours(0, 0, 0, 0)
+    end.setUTCDate(end.getUTCDate() + 1)
+    const start = new Date(end)
+    start.setUTCDate(start.getUTCDate() - days)
+
+    return { period, days, start, end }
+}
+
+function toDayKey({ year, month, day }) {
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+/** Return distinct conversations started per UTC day in the selected period. */
 export const getConversationActivity = async (req, res) => {
     try {
-        const period = req.query.period || '14d'
-        const now = new Date()
-
-        let days = 14
-        if (period === '7d') days = 7
-        if (period === '30d') days = 30
-
-        const lastDays = []
-        for (let i = days - 1; i >= 0; i--) {
-            const date = new Date(now)
-            date.setDate(now.getDate() - i)
-            date.setHours(0, 0, 0, 0)
-            lastDays.push(date)
-        }
-
-        // Query chat messages grouped by day
-        const activity = await ChatMessage.aggregate([
+        const { period, days, start, end } = getPeriodRange(req.query.period)
+        const activity = await ChatSession.aggregate([
             {
                 $match: {
-                    createdAt: {
-                        $gte: lastDays[0],
-                        $lt: new Date(lastDays[lastDays.length - 1].getTime() + 24 * 60 * 60 * 1000)
-                    },
-                    companyId: req.user.companyId
-                }
+                    companyId: req.user.companyId,
+                    createdAt: { $gte: start, $lt: end },
+                },
             },
             {
                 $group: {
                     _id: {
                         year: { $year: '$createdAt' },
                         month: { $month: '$createdAt' },
-                        day: { $dayOfMonth: '$createdAt' }
+                        day: { $dayOfMonth: '$createdAt' },
                     },
-                    count: { $sum: 1 }
-                }
+                    count: { $sum: 1 },
+                },
             },
-            {
-                $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 }
-            }
         ])
 
-        // Convert to map of day -> count
-        const activityMap = new Map()
-        activity.forEach((item) => {
-            const dayKey = `${item._id.year}-${item._id.month}-${item._id.day}`
-            activityMap.set(dayKey, item.count)
-        })
-
-        // Build result array with counts for each day in the period
-        const result = lastDays.map((date) => {
-            const dayKey = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
-            return activityMap.get(dayKey) || 0
+        const activityByDay = new Map(activity.map((entry) => [toDayKey(entry._id), entry.count]))
+        const result = Array.from({ length: days }, (_, index) => {
+            const date = new Date(start)
+            date.setUTCDate(start.getUTCDate() + index)
+            const key = toDayKey({
+                year: date.getUTCFullYear(),
+                month: date.getUTCMonth() + 1,
+                day: date.getUTCDate(),
+            })
+            return { date: key, count: activityByDay.get(key) || 0 }
         })
 
         return res.status(200).json({ activity: result, period })
@@ -153,60 +150,107 @@ export const getConversationActivity = async (req, res) => {
         console.error('Failed to fetch conversation activity:', error)
         return res.status(500).json({ message: 'Could not fetch conversation activity.' })
     }
-};
+}
 
-/** Get AI assistant performance metrics */
+/** Return real workspace and assistant metrics for the selected period. */
 export const getAssistantMetrics = async (req, res) => {
     try {
-        const now = new Date()
-        const period = req.query.period || '14d'
+        const { period, start, end } = getPeriodRange(req.query.period)
+        const companyId = req.user.companyId
+        const [messageMetrics, conversations, knowledgeDocuments] = await Promise.all([
+            ChatMessage.aggregate([
+                {
+                    $match: {
+                        companyId,
+                        role: 'assistant',
+                        createdAt: { $gte: start, $lt: end },
+                    },
+                },
+                {
+                    $group: {
+                        _id: null,
+                        totalMessages: { $sum: 1 },
+                        resolvedMessages: {
+                            $sum: {
+                                $cond: [
+                                    { $gt: [{ $size: { $ifNull: ['$retrievedChunkIds', []] } }, 0] },
+                                    1,
+                                    0,
+                                ],
+                            },
+                        },
+                        fallbackMessages: { $sum: { $cond: ['$fallbackUsed', 1, 0] } },
+                        averageResponseTimeMs: { $avg: '$responseTimeMs' },
+                    },
+                },
+            ]),
+            ChatSession.countDocuments({ companyId, createdAt: { $gte: start, $lt: end } }),
+            Document.countDocuments({ companyId, status: 'ready' }),
+        ])
 
-        let days = 14
-        if (period === '7d') days = 7
-        if (period === '30d') days = 30
-
-        const lastDate = new Date(now)
-        lastDate.setDate(now.getDate() - (days - 1))
-        lastDate.setHours(0, 0, 0, 0)
-
-        const firstDate = new Date(now)
-        firstDate.setDate(now.getDate() - days + 1)
-        firstDate.setHours(0, 0, 0, 0)
-
-        // Total assistant messages in period
-        const totalAssistantMessages = await ChatMessage.countDocuments({
-            role: 'assistant',
-            createdAt: { $gte: firstDate, $lte: lastDate },
-            companyId: req.user.companyId
-        })
-
-        // Messages with resolution (had chunks retrieved)
-        const resolvedMessages = await ChatMessage.countDocuments({
-            role: 'assistant',
-            retrievedChunkIds: { $ne: [] },
-            createdAt: { $gte: firstDate, $lte: lastDate },
-            companyId: req.user.companyId
-        })
-
-        // Messages with fallback
-        const fallbackMessages = await ChatMessage.countDocuments({
-            role: 'assistant',
-            fallbackUsed: true,
-            createdAt: { $gte: firstDate, $lte: lastDate },
-            companyId: req.user.companyId
-        })
-
-        const resolutionRate = totalAssistantMessages > 0 ? (resolvedMessages / totalAssistantMessages * 100) : 0
-        const fallbackRate = totalAssistantMessages > 0 ? (fallbackMessages / totalAssistantMessages * 100) : 0
+        const totals = messageMetrics[0] || {
+            totalMessages: 0,
+            resolvedMessages: 0,
+            fallbackMessages: 0,
+            averageResponseTimeMs: null,
+        }
+        const resolutionRate = totals.totalMessages
+            ? Math.round((totals.resolvedMessages / totals.totalMessages) * 100)
+            : 0
+        const fallbackRate = totals.totalMessages
+            ? Math.round((totals.fallbackMessages / totals.totalMessages) * 100)
+            : 0
 
         return res.status(200).json({
-            resolutionRate: Math.round(resolutionRate),
-            fallbackRate: Math.round(fallbackRate),
-            totalMessages: totalAssistantMessages,
-            period
+            period,
+            conversations,
+            totalMessages: totals.totalMessages,
+            resolvedMessages: totals.resolvedMessages,
+            fallbackMessages: totals.fallbackMessages,
+            resolutionRate,
+            fallbackRate,
+            averageResponseTimeMs: totals.averageResponseTimeMs === null
+                ? null
+                : Math.round(totals.averageResponseTimeMs),
+            knowledgeDocuments,
         })
     } catch (error) {
         console.error('Failed to fetch assistant metrics:', error)
         return res.status(500).json({ message: 'Could not fetch assistant metrics.' })
+    }
+}
+
+export const getRecentConversations = async (req, res) => {
+    try {
+        const conversations = await ChatMessage.aggregate([
+            {
+                $match: {
+                    companyId: req.user.companyId,
+                    role: 'user',
+                },
+            },
+            { $sort: { createdAt: -1 } },
+            {
+                $group: {
+                    _id: '$sessionId',
+                    latestMessage: { $first: '$content' },
+                    lastMessageAt: { $first: '$createdAt' },
+                },
+            },
+            { $sort: { lastMessageAt: -1 } },
+            { $limit: 5 },
+            {
+                $project: {
+                    _id: 1,
+                    latestMessage: { $substrCP: ['$latestMessage', 0, 140] },
+                    lastMessageAt: 1,
+                },
+            },
+        ])
+
+        return res.status(200).json({ conversations })
+    } catch (error) {
+        console.error('Failed to fetch recent conversations:', error)
+        return res.status(500).json({ message: 'Could not fetch recent conversations.' })
     }
 }

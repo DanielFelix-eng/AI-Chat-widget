@@ -24,7 +24,13 @@
   host.setAttribute('data-ai-chat-widget', '')
   document.body.appendChild(host)
   const shadow = host.attachShadow({ mode: 'open' })
-  const state = { history: [], config: null, open: false, sending: false }
+  const state = {
+    history: [],
+    config: null,
+    open: false,
+    sending: false,
+    visitorId: crypto.randomUUID(),
+  }
 
   shadow.innerHTML = `
     <style>
@@ -120,7 +126,7 @@
       const response = await fetch(`${apiUrl}/api/widget/${encodeURIComponent(publicKey)}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, history: state.history }),
+        body: JSON.stringify({ message, history: state.history, visitorId: state.visitorId }),
       })
       const result = await response.json()
       if (!response.ok) throw new Error(result.message || 'The assistant could not reply.')

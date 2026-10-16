@@ -4,6 +4,9 @@ import { buildContextMessage, NO_ANSWER_MESSAGE, SYSTEM_PROMPT } from '../servic
 import { streamAnswer } from '../service/llm.js'
 import Subscription from '../models/subscription.js'
 import { subscriptionHasAccess } from '../middleware/requirePlanAccess.js'
+import ChatSession from '../models/chatSession.js'
+import ChatMessage from '../models/chatMessage.js'
+import crypto from 'node:crypto'
 
 const MAX_MESSAGE_CHARS = 2000
 const MAX_HISTORY_MESSAGES = 8
@@ -26,6 +29,7 @@ function cleanHistory(history) {
 }
 
 async function generateAssistantReply(company, message, history) {
+    const startedAt = Date.now()
     const chunks = await retrieveChunks(company._id, message)
     const sources = chunks.map((chunk) => ({
         source: chunk.source,
@@ -35,7 +39,13 @@ async function generateAssistantReply(company, message, history) {
     if (!chunks.length) {
         // DEBUG: Retrieval returned no chunks after vector search and score filtering.
         console.log(`[DEBUG] RAG fallback condition: retrieveChunks returned 0 relevant chunks for companyId=${company._id}.`);
-        return { answer: NO_ANSWER_MESSAGE, sources }
+        return {
+            answer: NO_ANSWER_MESSAGE,
+            sources,
+            chunks,
+            fallbackUsed: true,
+            responseTimeMs: Date.now() - startedAt,
+        }
     }
 
     let answer = ''
@@ -48,7 +58,49 @@ async function generateAssistantReply(company, message, history) {
         onText: (text) => { answer += text },
     })
 
-    return { answer: answer || NO_ANSWER_MESSAGE, sources }
+    return {
+        answer: answer || NO_ANSWER_MESSAGE,
+        sources,
+        chunks,
+        fallbackUsed: false,
+        responseTimeMs: Date.now() - startedAt,
+    }
+}
+
+async function persistConversationTurn(company, visitorId, message, result) {
+    const safeVisitorId = typeof visitorId === 'string' && visitorId.trim().length <= 128
+        ? visitorId.trim()
+        : crypto.randomUUID()
+    const session = await ChatSession.findOneAndUpdate(
+        { companyId: company._id, visitorId: safeVisitorId },
+        {
+            $set: { lastMessageAt: new Date() },
+            $setOnInsert: {
+                companyId: company._id,
+                visitorId: safeVisitorId,
+                status: 'open',
+            },
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true },
+    )
+
+    await ChatMessage.create([
+        {
+            sessionId: session._id,
+            companyId: company._id,
+            role: 'user',
+            content: message,
+        },
+        {
+            sessionId: session._id,
+            companyId: company._id,
+            role: 'assistant',
+            content: result.answer,
+            retrievedChunkIds: result.chunks.map(({ chunkId }) => chunkId).filter(Boolean),
+            fallbackUsed: result.fallbackUsed,
+            responseTimeMs: result.responseTimeMs,
+        },
+    ])
 }
 
 function originIsAllowed(req, company) {
@@ -115,6 +167,7 @@ export const answerWidgetMessage = async (req, res) => {
         if (!company) return
 
         const result = await generateAssistantReply(company, message, req.body.history)
+        await persistConversationTurn(company, req.body.visitorId, message, result)
         return res.status(200).json({ answer: result.answer })
     } catch (error) {
         console.error('Widget reply failed:', error)
@@ -136,6 +189,7 @@ export const answerTestMessage = async (req, res) => {
         }
 
         const result = await generateAssistantReply(company, message, req.body.history)
+        await persistConversationTurn(company, req.body.visitorId, message, result)
         return res.status(200).json(result)
     } catch (error) {
         console.error('Assistant test reply failed:', error)
