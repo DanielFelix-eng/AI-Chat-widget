@@ -30,7 +30,7 @@ export const initializeAuth = createAsyncThunk(
   {
     condition: (_, { getState }) => {
       const status = getState().auth.status
-      return status === 'idle' || status === 'error'
+      return status !== 'checking'
     },
   },
 )

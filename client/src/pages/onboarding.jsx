@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
+import { useDispatch } from 'react-redux'
+import { initializeAuth } from '../store/authSlice.js'
 
 function Onboarding({ navigate }) {
+  const dispatch = useDispatch()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [checking, setChecking] = useState(true)
@@ -72,6 +75,7 @@ function Onboarding({ navigate }) {
       if (!response.ok) {
         throw new Error(result.message || 'Could not save your workspace. Please try again.')
       }
+      await dispatch(initializeAuth()).unwrap()
       navigate('/dashboard', { replace: true })
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Could not save your workspace. Please try again.')

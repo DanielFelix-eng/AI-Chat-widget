@@ -19,6 +19,10 @@ const companySchema = new mongoose.Schema(
             required: true,
             unique: true,
         },
+        onboardingCompleted: {
+            type: Boolean,
+            default: false,
+        },
         allowedDomains: {
             type: [String],
             default: [],

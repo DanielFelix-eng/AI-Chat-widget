@@ -57,6 +57,7 @@ export const saveOnboarding = async (req, res) => {
                 $set: {
                     name,
                     website: website?.toString() || null,
+                    onboardingCompleted: true,
                     allowedDomains: website ? [website.hostname.replace(/^www\./i, '')] : [],
                     'widgetConfig.primaryColor': primaryColor.toUpperCase(),
                     'widgetConfig.botName': botName,

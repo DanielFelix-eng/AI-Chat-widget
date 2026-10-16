@@ -4,13 +4,6 @@ import './billing.css'
 
 const plans = [
   {
-    key: 'free',
-    name: 'Free',
-    price: 0,
-    description: 'A simple way to get started.',
-    features: ['100 AI replies / month', '1 assistant widget', '3 knowledge documents'],
-  },
-  {
     key: 'starter',
     name: 'Starter',
     price: 300,
@@ -75,27 +68,7 @@ function BillingPage({ currentPlan = 'free', onPlanActivated }) {
     setError('')
     setNotice('')
     setPayment(null)
-
-    if (plan.key !== 'free') {
-      setSelectedPlan(plan)
-      return
-    }
-
-    setBusy(true)
-    try {
-      const response = await fetch('/api/billing/free', {
-        method: 'POST',
-        credentials: 'include',
-      })
-      await readBillingResponse(response)
-      setSelectedPlan(null)
-      setNotice('Your Free plan is active.')
-      onPlanActivated?.('free')
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Could not activate the Free plan.')
-    } finally {
-      setBusy(false)
-    }
+    setSelectedPlan(plan)
   }
 
   const startPayment = async (event) => {
@@ -135,7 +108,7 @@ function BillingPage({ currentPlan = 'free', onPlanActivated }) {
         <div>
           <span className="billing-eyebrow"><Sparkles size={14} /> PLANS THAT GROW WITH YOU</span>
           <h1>Choose your plan</h1>
-          <p>Start free, or unlock more room for your team. All prices are in Kenyan shillings.</p>
+          <p>Choose a monthly plan for your team. All prices are in Kenyan shillings.</p>
         </div>
         <div className="billing-current-plan"><span>Current plan</span><strong>{currentPlan}</strong></div>
       </div>
@@ -167,7 +140,7 @@ function BillingPage({ currentPlan = 'free', onPlanActivated }) {
             >
               {busy && selectedPlan?.key === plan.key ? <><LoaderCircle className="billing-spin" size={15} /> Please wait…</> :
                 currentPlan.toLowerCase() === plan.key && !payment ? 'Current plan' :
-                  plan.key === 'free' ? 'Choose Free' : selectedPlan?.key === plan.key ? 'Selected' : `Choose ${plan.name}`}
+                  selectedPlan?.key === plan.key ? 'Selected' : `Choose ${plan.name}`}
             </button>
           </article>
         ))}

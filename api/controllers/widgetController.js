@@ -2,6 +2,8 @@ import Company from '../models/company.js'
 import { retrieveChunks } from '../service/retrieve.js'
 import { buildContextMessage, NO_ANSWER_MESSAGE, SYSTEM_PROMPT } from '../service/prompt.js'
 import { streamAnswer } from '../service/llm.js'
+import Subscription from '../models/subscription.js'
+import { subscriptionHasAccess } from '../middleware/requirePlanAccess.js'
 
 const MAX_MESSAGE_CHARS = 2000
 const MAX_HISTORY_MESSAGES = 8
@@ -73,6 +75,12 @@ async function findAuthorizedCompany(req, res) {
     }
     if (!originIsAllowed(req, company)) {
         res.status(403).json({ message: 'This website is not allowed to use the widget.' })
+        return null
+    }
+    const subscription = await Subscription.findOne({ organizationId: company._id })
+        .select('status trialEndsAt currentPeriodEnd')
+    if (!subscriptionHasAccess(subscription)) {
+        res.status(402).json({ message: 'This assistant is unavailable because its plan has expired.' })
         return null
     }
     return company

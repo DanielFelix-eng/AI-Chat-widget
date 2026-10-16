@@ -8,43 +8,109 @@ import { normalizeKenyanPhone } from "./normalize.js";
 const router = express.Router();
 const monthlyPrices = { starter: 300, pro: 600 };
 
-router.post("/free", verifyToken, async (req, res) => {
+async function startTrial(req, res) {
   const companyId = req.user.companyId;
+  const planKey = req.body?.planKey || "starter";
   if (!companyId) {
     return res.status(403).json({ message: "User is not associated with a company." });
   }
+  if (!req.user.isVerified) {
+    return res.status(403).json({ message: "Verify your email before selecting a plan." });
+  }
+  if (!Object.hasOwn(monthlyPrices, planKey)) {
+    return res.status(400).json({ message: "Choose a valid plan." });
+  }
 
   try {
-    const company = await Company.findByIdAndUpdate(
-      companyId,
-      { $set: { "widgetConfig.plan": "free" } },
-      { new: true }
-    );
+    const company = await Company.findById(companyId).select("_id");
     if (!company) return res.status(404).json({ message: "Company workspace not found." });
 
-    await Subscription.findOneAndUpdate(
-      { organizationId: companyId },
+    const existing = await Subscription.findOne({ organizationId: companyId });
+    if (existing?.trialEndsAt || ["active", "trialing"].includes(existing?.status)) {
+      return res.status(409).json({ message: "Your free month has already been used." });
+    }
+
+    const now = new Date();
+    const trialEndsAt = new Date(now);
+    trialEndsAt.setMonth(trialEndsAt.getMonth() + 1);
+    const subscription = await Subscription.findOneAndUpdate(
+      {
+        organizationId: companyId,
+        $and: [
+          { $or: [{ trialEndsAt: null }, { trialEndsAt: { $exists: false } }] },
+          { status: { $nin: ["active", "trialing"] } },
+        ],
+      },
       {
         $set: {
-          planKey: "free",
+          planKey,
           interval: "monthly",
-          status: "free",
-          currentPeriodStart: null,
+          status: "trialing",
+          currentPeriodStart: now,
           currentPeriodEnd: null,
+          trialEndsAt,
           graceEndsAt: null,
           cancelAtPeriodEnd: false,
           paymentMethod: null,
         },
       },
-      { upsert: true, runValidators: true }
+      { upsert: !existing, new: true, runValidators: true }
+    );
+    if (!subscription) {
+      return res.status(409).json({ message: "Your free month has already been used." });
+    }
+
+    await Company.findByIdAndUpdate(
+      companyId,
+      { $set: { "widgetConfig.plan": planKey } },
+      { new: true }
     );
 
-    return res.status(200).json({ success: true, plan: "free" });
+    return res.status(200).json({
+      success: true,
+      plan: planKey,
+      status: subscription.status,
+      trialEndsAt: subscription.trialEndsAt,
+    });
   } catch (error) {
-    console.error("Failed to activate Free plan:", error);
-    return res.status(500).json({ message: "Could not activate the Free plan. Please try again." });
+    if (error?.code === 11000) {
+      return res.status(409).json({ message: "Your free month has already been used." });
+    }
+    console.error("Failed to activate plan trial:", error);
+    return res.status(500).json({ message: "Could not start your free month. Please try again." });
+  }
+}
+
+router.get("/subscription", verifyToken, async (req, res) => {
+  if (!req.user.companyId) {
+    return res.status(200).json({ subscription: null, hasAccess: false, trialUsed: false });
+  }
+
+  try {
+    const subscription = await Subscription.findOne({
+      organizationId: req.user.companyId,
+    }).select("status planKey trialEndsAt currentPeriodEnd");
+
+    return res.status(200).json({
+      subscription: subscription ? {
+        status: subscription.status,
+        planKey: subscription.planKey,
+        trialEndsAt: subscription.trialEndsAt,
+        currentPeriodEnd: subscription.currentPeriodEnd,
+      } : null,
+      hasAccess: subscription?.status === "trialing"
+        ? Boolean(subscription.trialEndsAt && subscription.trialEndsAt > new Date())
+        : Boolean(subscription?.status === "active" && subscription.currentPeriodEnd > new Date()),
+      trialUsed: Boolean(subscription?.trialEndsAt),
+    });
+  } catch (error) {
+    console.error("Failed to load subscription:", error);
+    return res.status(500).json({ message: "Could not load your plan. Please try again." });
   }
 });
+
+router.post("/trial", verifyToken, startTrial);
+router.post("/free", verifyToken, startTrial);
 
 router.post("/mpesa/charge", verifyToken, async (req, res) => {
   const { planKey, phone } = req.body;
@@ -53,6 +119,9 @@ router.post("/mpesa/charge", verifyToken, async (req, res) => {
 
   if (!companyId) {
     return res.status(403).json({ message: "User is not associated with a company." });
+  }
+  if (!req.user.isVerified) {
+    return res.status(403).json({ message: "Verify your email before making a payment." });
   }
   if (!amountKes) {
     return res.status(400).json({ message: "Choose a valid paid plan." });

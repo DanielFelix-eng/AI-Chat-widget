@@ -9,6 +9,7 @@ import Onboarding from './pages/onboarding.jsx'
 import ResetPassword from './pages/resetPassword.jsx'
 import SignUp from './pages/signUp.jsx'
 import VerifyEmail from './pages/verifyEmail.jsx'
+import Pricing from './pages/payment/pricing.jsx'
 import './App.css'
 
 function AuthCheckFallback({ error }) {
@@ -36,14 +37,41 @@ function AuthCheckFallback({ error }) {
   )
 }
 
-function ProtectRoute({ children, requireVerified = true }) {
+function getAuthenticatedDestination(user) {
+  if (!user?.isVerified) return '/verify-email'
+  if (!user.companyId || (user.subscription?.hasAccess && user.onboardingCompleted === false)) {
+    return '/onboarding'
+  }
+  return user.subscription?.hasAccess ? '/dashboard' : '/pricing'
+}
+
+function ProtectRoute({ children, onboarding = false, allowUnverified = false, requiresPlan = false }) {
   const { status, user, error } = useSelector((state) => state.auth)
 
   if (status === 'idle' || status === 'checking') return <AuthCheckFallback />
   if (status === 'error') return <AuthCheckFallback error={error} />
   if (status !== 'authenticated') return <Navigate to="/login" replace />
-  if (requireVerified && !user?.isVerified) return <Navigate to="/verify-email" replace />
-  if (!requireVerified && user?.isVerified) return <Navigate to="/dashboard" replace />
+  if (!user.isVerified && !allowUnverified) return <Navigate to="/verify-email" replace />
+  if (allowUnverified && user.isVerified) {
+    return <Navigate to={getAuthenticatedDestination(user)} replace />
+  }
+
+  if (onboarding) {
+    if (user.companyId && !user.subscription?.hasAccess) return <Navigate to="/pricing" replace />
+    if (user.subscription?.hasAccess && user.onboardingCompleted !== false) {
+      return <Navigate to="/dashboard" replace />
+    }
+    return children
+  }
+
+  if (!user.companyId && requiresPlan) return <Navigate to="/onboarding" replace />
+  if (user.companyId && !user.subscription?.hasAccess && requiresPlan) {
+    return <Navigate to="/pricing" replace />
+  }
+  if (requiresPlan && user.onboardingCompleted === false) {
+    return <Navigate to="/onboarding" replace />
+  }
+  if (!requiresPlan && !user.companyId) return <Navigate to="/onboarding" replace />
 
   return children
 }
@@ -54,7 +82,7 @@ function RedirectAuthenticatedUser({ children }) {
   if (status === 'idle' || status === 'checking') return <AuthCheckFallback />
   if (status === 'error') return <AuthCheckFallback error={error} />
   if (status === 'authenticated') {
-    return <Navigate to={user?.isVerified ? '/dashboard' : '/verify-email'} replace />
+    return <Navigate to={getAuthenticatedDestination(user)} replace />
   }
 
   return children
@@ -151,12 +179,13 @@ function App() {
       />
       <Route
         path="/verify-email"
-        element={<ProtectRoute requireVerified={false}><AuthLayout><PageRoute component={VerifyEmail} email={window.sessionStorage.getItem('auth-email') || ''} /></AuthLayout></ProtectRoute>}
+        element={<ProtectRoute allowUnverified><AuthLayout><PageRoute component={VerifyEmail} email={window.sessionStorage.getItem('auth-email') || ''} /></AuthLayout></ProtectRoute>}
       />
       <Route path="/forgot-password" element={<AuthLayout><PageRoute component={ForgotPassword} /></AuthLayout>} />
       <Route path="/reset-password" element={<AuthLayout><PageRoute component={ResetPassword} /></AuthLayout>} />
-      <Route path="/onboarding" element={<ProtectRoute><AuthLayout><PageRoute component={Onboarding} /></AuthLayout></ProtectRoute>} />
-      <Route path="/dashboard" element={<ProtectRoute><PageRoute component={Dashboard} /></ProtectRoute>} />
+      <Route path="/pricing" element={<ProtectRoute><PageRoute component={Pricing} /></ProtectRoute>} />
+      <Route path="/onboarding" element={<ProtectRoute onboarding><AuthLayout><PageRoute component={Onboarding} /></AuthLayout></ProtectRoute>} />
+      <Route path="/dashboard" element={<ProtectRoute requiresPlan><PageRoute component={Dashboard} /></ProtectRoute>} />
       <Route path="*" element={<Navigate to="/signup" replace />} />
     </Routes>
   )

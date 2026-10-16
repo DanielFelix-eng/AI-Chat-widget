@@ -1,9 +1,28 @@
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 import User from '../models/user.js'
+import Company from '../models/company.js'
 import { generateToken } from '../utils/setCookie.js'
 import { sendEmail } from '../utils/sendEmail.js'
 import { EmailVerification, WelcomeEmail, ResetPassword, ResetPasswordSuccess } from '../templates/email.js'
+
+async function ensureWorkspace(user) {
+    let company = await Company.findOne({ ownerUserId: user._id })
+    if (!company) {
+        company = await Company.create({
+            name: user.name || 'My workspace',
+            ownerUserId: user._id,
+            widgetPublicKey: crypto.randomBytes(24).toString('hex'),
+            onboardingCompleted: false,
+        })
+    }
+    if (!user.companyId || String(user.companyId) !== String(company._id)) {
+        user.companyId = company._id
+        await user.save()
+    }
+    return company
+}
+
 export const signup = async (req, res) => {
     const { email, password, name } = req.body;
 
@@ -33,6 +52,13 @@ export const signup = async (req, res) => {
 
 
         await user.save();
+        try {
+            await ensureWorkspace(user)
+        } catch (provisionError) {
+            await Company.deleteOne({ ownerUserId: user._id })
+            await User.deleteOne({ _id: user._id })
+            throw provisionError
+        }
         const token = generateToken(res, user._id);
 
 
@@ -82,10 +108,12 @@ export const verifyEmail = async (req, res) => {
         user.verificationTokenExpire = undefined;
         await user.save();
 
+        const appUrl = process.env.CLIENT_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:5173'
+        const pricingUrl = new URL('/pricing', appUrl).toString()
         await sendEmail({
             to: user.email,
             subject: 'Welcome',
-            html: WelcomeEmail(user.name, user.email, 'https://yourapp.com/dashboard')
+            html: WelcomeEmail(user.name, user.email, pricingUrl)
         });
 
         return res.status(200).json({
@@ -291,6 +319,7 @@ export const googleAuth = async (req, res) => {
             user.lastlogin = new Date()
             await user.save()
         }
+        await ensureWorkspace(user)
 
         const token = generateToken(res, user._id)
 
