@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useSelector } from 'react-redux'
 import {
   AlertCircle,
   ArrowUpRight,
@@ -194,7 +195,14 @@ function formatMessageTime(dateValue) {
   return messageDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
+function getTimeGreeting(hour) {
+  if (hour < 12) return 'Good morning'
+  if (hour < 17) return 'Good afternoon'
+  return 'Good evening'
+}
+
 function Dashboard({ navigate }) {
+  const user = useSelector((state) => state.auth.user)
   const [collapsed, setCollapsed] = useState(true)
   const [sidebarHovered, setSidebarHovered] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -210,6 +218,14 @@ function Dashboard({ navigate }) {
   const [metricsError, setMetricsError] = useState('')
   const [recentConversations, setRecentConversations] = useState([])
   const [recentError, setRecentError] = useState('')
+  const [currentHour, setCurrentHour] = useState(() => new Date().getHours())
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setCurrentHour(new Date().getHours())
+    }, 60_000)
+    return () => window.clearInterval(intervalId)
+  }, [])
 
   const updateCompanyPlan = useCallback((planKey) => {
     setCompany((current) => current ? {
@@ -331,6 +347,7 @@ function Dashboard({ navigate }) {
   const currentMetrics = metrics?.period === period ? metrics : null
   const currentActivity = activityPeriod === period ? activity : []
   const periodDays = period === '7d' ? '7' : period === '30d' ? '30' : '14'
+  const firstName = user?.name?.trim().split(/\s+/)[0]
 
   return (
     <main className={`dashboard-shell${collapsed ? ' sidebar-collapsed' : ''}${sidebarHovered ? ' sidebar-hovered' : ''}${mobileOpen ? ' mobile-nav-open' : ''}`}>
@@ -439,7 +456,7 @@ function Dashboard({ navigate }) {
           <div className="dashboard-heading-row">
             <div>
               <div className="dashboard-date"><span className="status-dot" /> {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase()}</div>
-              <h1>{company?.name ? `Welcome to ${company.name}` : 'Your support overview'} <span className="heading-wave">✳</span></h1>
+              <h1>{getTimeGreeting(currentHour)}{firstName ? `, ${firstName}` : ''} <span className="heading-wave">✳</span></h1>
               <p>Live workspace activity for the selected period.</p>
             </div>
             <button className="dashboard-primary-button" type="button" onClick={() => selectPage('Chat')}><Plus size={17} /> Test your assistant</button>
