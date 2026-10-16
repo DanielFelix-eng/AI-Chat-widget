@@ -1,7 +1,10 @@
 import { useState } from 'react'
+import { useDispatch } from 'react-redux'
 import { authRequest, getErrorMessage } from '../lib/auth.js'
+import { setCredentials } from '../store/authSlice.js'
 
 function VerifyEmail({ navigate, email }) {
+  const dispatch = useDispatch()
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
@@ -14,7 +17,9 @@ function VerifyEmail({ navigate, email }) {
     const values = Object.fromEntries(new FormData(event.currentTarget))
 
     try {
-      await authRequest('verifyEmail', { code: values.code })
+      const result = await authRequest('verifyEmail', { code: values.code })
+      if (!result.user) throw new Error('The server did not return the verified user.')
+      dispatch(setCredentials(result.user))
       navigate('/dashboard', { replace: true })
     } catch (requestError) {
       setError(getErrorMessage(requestError))

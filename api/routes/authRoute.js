@@ -13,7 +13,15 @@ router.post('/resendVerification', verifyToken, resendVerification)
 router.post('/forgotPassword', forgotPassword)
 router.post('/resetPassword', resetPassword)
 router.get('/verifyToken', verifyToken, (req, res) => {
-    res.status(200).json({ message: 'Token is valid' })
-}
-)
+    res.status(200).json({
+        message: 'Token is valid',
+        user: {
+            _id: req.user._id,
+            name: req.user.name,
+            email: req.user.email,
+            companyId: req.user.companyId,
+            isVerified: req.user.isVerified,
+        },
+    })
+})
 export default router

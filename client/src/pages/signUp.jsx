@@ -1,7 +1,10 @@
 import { useState } from 'react'
+import { useDispatch } from 'react-redux'
 import { authRequest, getErrorMessage } from '../lib/auth.js'
+import { setCredentials } from '../store/authSlice.js'
 
 function SignUp({ navigate, rememberEmail }) {
+  const dispatch = useDispatch()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -12,7 +15,9 @@ function SignUp({ navigate, rememberEmail }) {
     const values = Object.fromEntries(new FormData(event.currentTarget))
 
     try {
-      await authRequest('signup', values)
+      const result = await authRequest('signup', values)
+      if (!result.user) throw new Error('The server did not return the created user.')
+      dispatch(setCredentials(result.user))
       rememberEmail(values.email)
       navigate('/verify-email')
     } catch (requestError) {

@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
+import { initializeAuth } from './store/authSlice.js'
 import Dashboard from './pages/dashboard.jsx'
 import ForgotPassword from './pages/forgotPassword.jsx'
 import Login from './pages/login.jsx'
@@ -8,19 +11,58 @@ import SignUp from './pages/signUp.jsx'
 import VerifyEmail from './pages/verifyEmail.jsx'
 import './App.css'
 
-const routeNames = new Set([
-  '/signup',
-  '/login',
-  '/verify-email',
-  '/forgot-password',
-  '/reset-password',
-  '/dashboard',
-  '/onboarding',
-])
+function AuthCheckFallback({ error }) {
+  const dispatch = useDispatch()
 
-function currentRoute() {
-  const path = window.location.pathname.replace(/\/+$/, '') || '/'
-  return routeNames.has(path) ? path : '/signup'
+  if (error) {
+    return (
+      <main className="route-guard">
+        <section className="route-guard-card" role="alert">
+          <h1>Could not verify your session</h1>
+          <p>{error}</p>
+          <div className="route-guard-actions">
+            <button type="button" onClick={() => dispatch(initializeAuth())}>Try again</button>
+          </div>
+        </section>
+      </main>
+    )
+  }
+
+  return (
+    <main className="route-guard" role="status" aria-live="polite">
+      <span className="route-guard-spinner" aria-hidden="true" />
+      <span>Verifying your session…</span>
+    </main>
+  )
+}
+
+function ProtectRoute({ children, requireVerified = true }) {
+  const { status, user, error } = useSelector((state) => state.auth)
+
+  if (status === 'idle' || status === 'checking') return <AuthCheckFallback />
+  if (status === 'error') return <AuthCheckFallback error={error} />
+  if (status !== 'authenticated') return <Navigate to="/login" replace />
+  if (requireVerified && !user?.isVerified) return <Navigate to="/verify-email" replace />
+  if (!requireVerified && user?.isVerified) return <Navigate to="/dashboard" replace />
+
+  return children
+}
+
+function RedirectAuthenticatedUser({ children }) {
+  const { status, user, error } = useSelector((state) => state.auth)
+
+  if (status === 'idle' || status === 'checking') return <AuthCheckFallback />
+  if (status === 'error') return <AuthCheckFallback error={error} />
+  if (status === 'authenticated') {
+    return <Navigate to={user?.isVerified ? '/dashboard' : '/verify-email'} replace />
+  }
+
+  return children
+}
+
+function PageRoute({ component: Page, ...props }) {
+  const navigate = useNavigate()
+  return <Page {...props} navigate={navigate} />
 }
 
 function BrandMark() {
@@ -72,115 +114,51 @@ function StoryPanel() {
   )
 }
 
-function App() {
-  const [route, setRoute] = useState(currentRoute)
-  const [dashboardAuthStatus, setDashboardAuthStatus] = useState(() => currentRoute() === '/dashboard' ? 'checking' : 'idle')
-  const [authCheckAttempt, setAuthCheckAttempt] = useState(0)
-
-  useEffect(() => {
-    const syncRoute = () => {
-      const nextRoute = currentRoute()
-      if (nextRoute === '/dashboard') setDashboardAuthStatus('checking')
-      setRoute(nextRoute)
-    }
-    window.addEventListener('popstate', syncRoute)
-    return () => window.removeEventListener('popstate', syncRoute)
-  }, [])
-
-  const navigate = useCallback((path, { replace = false } = {}) => {
-    window.history[replace ? 'replaceState' : 'pushState']({}, '', path)
-    if (path === '/dashboard') setDashboardAuthStatus('checking')
-    setRoute(currentRoute())
-  }, [])
-
-  useEffect(() => {
-    if (route !== '/dashboard') return undefined
-
-    const controller = new AbortController()
-
-    fetch('/api/auth/verifyToken', {
-      credentials: 'include',
-      signal: controller.signal,
-    })
-      .then((response) => {
-        if (controller.signal.aborted) return
-        if (response.status === 401) {
-          navigate('/login', { replace: true })
-          return
-        }
-        if (!response.ok) {
-          throw new Error('Could not verify your session. Please try again.')
-        }
-        setDashboardAuthStatus('authenticated')
-      })
-      .catch((error) => {
-        if (error.name !== 'AbortError' && !controller.signal.aborted) {
-          setDashboardAuthStatus('error')
-        }
-      })
-
-    return () => controller.abort()
-  }, [route, authCheckAttempt, navigate])
-
-  const rememberEmail = (email) => {
-    window.sessionStorage.setItem('auth-email', email)
-  }
-
-  if (route === '/dashboard') {
-    if (dashboardAuthStatus === 'authenticated') {
-      return <Dashboard navigate={navigate} />
-    }
-
-    if (dashboardAuthStatus === 'error') {
-      return (
-        <main className="route-guard">
-          <section className="route-guard-card" role="alert">
-            <h1>Could not verify your session</h1>
-            <p>Your dashboard is protected and hasn’t been loaded. Check your connection and try again.</p>
-            <div className="route-guard-actions">
-              <button type="button" onClick={() => {
-                setDashboardAuthStatus('checking')
-                setAuthCheckAttempt((attempt) => attempt + 1)
-              }}>Try again</button>
-              <button type="button" className="secondary" onClick={() => navigate('/login', { replace: true })}>Go to login</button>
-            </div>
-          </section>
-        </main>
-      )
-    }
-
-    return (
-      <main className="route-guard" role="status" aria-live="polite">
-        <span className="route-guard-spinner" aria-hidden="true" />
-        <span>Verifying your session…</span>
-      </main>
-    )
-  }
-
-  let page
-  if (route === '/login') {
-    page = <Login navigate={navigate} rememberEmail={rememberEmail} />
-  } else if (route === '/verify-email') {
-    page = <VerifyEmail navigate={navigate} email={window.sessionStorage.getItem('auth-email') || ''} />
-  } else if (route === '/forgot-password') {
-    page = <ForgotPassword navigate={navigate} />
-  } else if (route === '/reset-password') {
-    page = <ResetPassword navigate={navigate} />
-  } else if (route === '/onboarding') {
-    page = <Onboarding navigate={navigate} />
-  } else {
-    page = <SignUp navigate={navigate} rememberEmail={rememberEmail} />
-  }
-
+function AuthLayout({ children }) {
   return (
     <main className="auth-page">
       <StoryPanel />
       <section className="form-panel">
         <div className="form-top-mobile"><BrandMark /></div>
-        <div className="form-wrap">{page}</div>
+        <div className="form-wrap">{children}</div>
         <div className="form-footer"><span>© 2026 AI Chat</span><span>AI support, made personal</span></div>
       </section>
     </main>
+  )
+}
+
+function rememberEmail(email) {
+  window.sessionStorage.setItem('auth-email', email)
+}
+
+function App() {
+  const dispatch = useDispatch()
+
+  useEffect(() => {
+    dispatch(initializeAuth())
+  }, [dispatch])
+
+  return (
+    <Routes>
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route
+        path="/signup"
+        element={<RedirectAuthenticatedUser><AuthLayout><PageRoute component={SignUp} rememberEmail={rememberEmail} /></AuthLayout></RedirectAuthenticatedUser>}
+      />
+      <Route
+        path="/login"
+        element={<RedirectAuthenticatedUser><AuthLayout><PageRoute component={Login} rememberEmail={rememberEmail} /></AuthLayout></RedirectAuthenticatedUser>}
+      />
+      <Route
+        path="/verify-email"
+        element={<ProtectRoute requireVerified={false}><AuthLayout><PageRoute component={VerifyEmail} email={window.sessionStorage.getItem('auth-email') || ''} /></AuthLayout></ProtectRoute>}
+      />
+      <Route path="/forgot-password" element={<AuthLayout><PageRoute component={ForgotPassword} /></AuthLayout>} />
+      <Route path="/reset-password" element={<AuthLayout><PageRoute component={ResetPassword} /></AuthLayout>} />
+      <Route path="/onboarding" element={<ProtectRoute><AuthLayout><PageRoute component={Onboarding} /></AuthLayout></ProtectRoute>} />
+      <Route path="/dashboard" element={<ProtectRoute><PageRoute component={Dashboard} /></ProtectRoute>} />
+      <Route path="*" element={<Navigate to="/signup" replace />} />
+    </Routes>
   )
 }
 

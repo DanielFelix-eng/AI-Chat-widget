@@ -1,7 +1,10 @@
 import { useState } from 'react'
+import { useDispatch } from 'react-redux'
 import { authRequest, getErrorMessage } from '../lib/auth.js'
+import { setCredentials } from '../store/authSlice.js'
 
 function Login({ navigate, rememberEmail }) {
+  const dispatch = useDispatch()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -13,6 +16,8 @@ function Login({ navigate, rememberEmail }) {
 
     try {
       const result = await authRequest('login', values)
+      if (!result.user) throw new Error('The server did not return the signed-in user.')
+      dispatch(setCredentials(result.user))
       rememberEmail(values.email)
       navigate(result.user?.isVerified === true ? '/dashboard' : '/verify-email')
     } catch (requestError) {
