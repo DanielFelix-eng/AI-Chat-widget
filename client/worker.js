@@ -10,7 +10,7 @@ function configurationError(message) {
 }
 
 async function proxyApiRequest(request, env) {
-  const configuredApiUrl = env.VITE_API_URL|| env.VITE_API_URL
+  const configuredApiUrl = env.VITE_API_URL
   if (!configuredApiUrl) {
     return configurationError('VITE_API_URL is not configured for this deployment.')
   }

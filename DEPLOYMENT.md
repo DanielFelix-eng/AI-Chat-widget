@@ -5,12 +5,12 @@
 Deploy the React frontend as a Cloudflare Worker with static assets, keeping the API on Suga:
 
 1. Deploy from the `client` directory using the settings in `wrangler.jsonc`. Build the frontend with `npm run build`, then deploy the Worker with `wrangler deploy`.
-2. Add `SUGA_API_URL` as a Worker runtime variable for production (and preview/staging environments if used), with the base HTTPS origin of the deployed Suga service (for example, `https://your-api-host`). Do not add a path such as `/api` or a trailing route.
+2. Add `VITE_API_URL` as a Worker runtime variable for production (and preview/staging environments if used), with the base HTTPS origin of the deployed Suga service (for example, `https://your-api-host`). Do not add a path such as `/api` or a trailing route.
 3. Set the Suga backend's `CLIENT_URL` to the frontend's deployed HTTPS origin (for example, `https://your-project.workers.dev`). If using a custom frontend domain, use that canonical origin instead.
 
 `client/worker.js` proxies `/api/*` and `/widget.js` to Suga before static asset handling. The browser therefore uses the Worker origin for API requests and auth cookies; the dashboard does not need browser CORS access to the Suga hostname. Widget API requests retain their origin so the backend's widget CORS policy can respond to embeds on other sites. Static assets use the SPA fallback for frontend routes.
 
-Set `SUGA_API_URL` as a Cloudflare Worker runtime variable (the Worker also accepts the legacy `VITE_API_URL` runtime variable). Do not set it as a Vite build variable. The Worker reads it at request time, so a Suga URL change does not require rebuilding the frontend.
+Set `VITE_API_URL` as a Cloudflare Worker runtime variable. Do not set it as a Vite build variable. The Worker reads it at request time, so a Suga URL change does not require rebuilding the frontend.
 
 ## Suga backend deployment
 
@@ -22,7 +22,7 @@ Set `SUGA_API_URL` as a Cloudflare Worker runtime variable (the Worker also acce
 
 The service health endpoint is `/healthz`.
 
-`VITE_API_URL` is only the Vite development proxy target; it defaults to `http://127.0.0.1:5000`. The deployed frontend uses the Cloudflare Pages proxy instead. `VITE_WIDGET_API_URL` is an optional **build-time** override for the URL included in the embeddable widget. Leave it unset to use the Pages origin and its `/widget.js` and `/api/widget/*` proxy routes.
+`VITE_API_URL` defaults to `http://127.0.0.1:5000` for the Vite development proxy. In the deployed Cloudflare Worker, set it as a runtime variable to the Suga API origin. `VITE_WIDGET_API_URL` is an optional **build-time** override for the URL included in the embeddable widget. Leave it unset to use the Cloudflare Worker origin and its `/widget.js` and `/api/widget/*` proxy routes.
 
 ## Runtime environment variables
 
