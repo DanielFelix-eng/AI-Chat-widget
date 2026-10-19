@@ -1,29 +1,29 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import babel from '@rolldown/plugin-babel'
 import tailwindcss from '@tailwindcss/vite'
+import { fileURLToPath } from 'node:url'
 
-// src/lib/api.js
-export const VITE_API_URL = import.meta.env.VITE_API_URL || "";
+const envDir = fileURLToPath(new URL('..', import.meta.url))
 
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, envDir, 'VITE_')
 
-
-
-
-export default defineConfig({
-   plugins: [
-     react(),
-     babel({ presets: [reactCompilerPreset()] }),
-       tailwindcss(),
-   ],
-   server: {
-     proxy: {
-       // Shorthand for simple forwarding
-       '/api': {
-         target: VITE_API_URL,
-         changeOrigin: true,
-       }
-     }
-   }
- })
+  return {
+    envDir,
+    plugins: [
+      react(),
+      babel({ presets: [reactCompilerPreset()] }),
+      tailwindcss(),
+    ],
+    server: {
+      proxy: {
+        '/api': {
+          target: env.VITE_API_URL || 'http://127.0.0.1:5000',
+          changeOrigin: true,
+        },
+      },
+    },
+  }
+})
  
