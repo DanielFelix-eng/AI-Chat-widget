@@ -15,20 +15,28 @@ Deploy the React frontend as a Cloudflare Worker with static assets, keeping the
 ## Suga backend deployment
 
 1. Connect this GitHub repository to Suga and create a project with a Node service using the repository root as its build directory. Suga detects Node from the root `package.json`; its build runs `npm run build` and its start command is `npm start`.
-2. Set the service's `PORT` to `5000`, declare port `5000` for private networking, and expose that port through a public HTTPS endpoint. The server binds to `0.0.0.0` and serves the API, built Vite client, and `/widget.js` from the same service.
+2. Set the service runtime variable `PORT=8000`, declare port `8000` for private networking, and expose that same port through a public HTTPS endpoint. The server binds to `0.0.0.0` and serves the API, built Vite client, and `/widget.js` from the same service. The code also defaults to port `8000` if `PORT` is unset, so the runtime variable and Suga's configured target port must match.
 3. Set the runtime environment variables listed below in Suga. Mark credentials and keys as sensitive. Set `CLIENT_URL` to the Cloudflare frontend's canonical HTTPS origin; this is used for account email links and is included in the backend's allowed CORS origins.
 4. If the service needs to retain uploaded documents across redeploys, attach a persistent volume mounted at `/data` and set `UPLOAD_DIR=/data`.
 5. After the first deploy, configure the Paystack webhook URL as `https://<your-suga-host>/api/webhooks/paystack`.
 
-The service health endpoint is `/healthz`.
+`/livez` checks that the HTTP process is running. `/healthz` checks readiness and returns HTTP 503 until MongoDB is connected, then returns `{"status":"ok"}`.
 
-`VITE_API_URL` defaults to `http://127.0.0.1:5000` for the Vite development proxy. In the deployed Cloudflare Worker, set it as a runtime variable to the Suga API origin. `VITE_WIDGET_API_URL` is an optional **build-time** override for the URL included in the embeddable widget. Leave it unset to use the Cloudflare Worker origin and its `/widget.js` and `/api/widget/*` proxy routes.
+### Troubleshooting HTTP 503 / connection refused
+
+The HTTP server starts before connecting to MongoDB, so connection failures should now appear in `/healthz` and the service logs instead of causing connection refused. The app retries the MongoDB connection with increasing delays (up to 30 seconds). Check the Suga service's latest deployment logs:
+
+- Confirm the logs say `Server listening on port 8000` and configure the Suga public HTTPS endpoint to target port `8000`.
+- If logs report `Mongo error` or `Database connection failed`, fix `MONGO_URI` and ensure the MongoDB deployment accepts connections from Suga.
+- Test `https://<your-suga-host>/livez`; it should return `{"status":"ok"}` while the process is running. Test `/healthz` to confirm MongoDB is connected before testing login.
+
+`VITE_API_URL` defaults to `http://127.0.0.1:8000` for the Vite development proxy. In the deployed Cloudflare Worker, set it as a runtime variable to the Suga API origin. `VITE_WIDGET_API_URL` is an optional **build-time** override for the URL included in the embeddable widget. Leave it unset to use the Cloudflare Worker origin and its `/widget.js` and `/api/widget/*` proxy routes.
 
 ## Runtime environment variables
 
 Set these on the Suga service:
 
-- `NODE_ENV=production`, `PORT=5000`, and `CLIENT_URL=https://<your-cloudflare-host>`.
+- `NODE_ENV=production`, `PORT=8000`, and `CLIENT_URL=https://<your-cloudflare-host>`. Make the Suga public HTTPS endpoint target port `8000` too.
 - `MONGO_URI`: connection string for a MongoDB deployment accessible to Suga. Ensure network access permits connections from Suga.
 - `JWT_SECRET`: use a long, randomly generated value.
 - `LLM_API_KEY`, `LLM_BASE_URL`, and `LLM_MODEL`: credentials and settings for the OpenAI-compatible chat provider.

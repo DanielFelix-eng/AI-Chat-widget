@@ -3,7 +3,7 @@
  import express from "express";
  import { fileURLToPath } from "node:url";
  import path from "node:path";
- import { connectedDB } from "./db/db.js";
+ import { connectedDB, isDBConnected } from "./db/db.js";
  import cookieParser from "cookie-parser";
  import authRoute from "./routes/authRoute.js";
  import companyRoutes from "./routes/company.routes.js";
@@ -20,6 +20,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDist = path.resolve(__dirname, "../client/dist");
 
 app.get("/healthz", (_req, res) => {
+  if (!isDBConnected()) {
+    return res.status(503).json({ status: "not_ready", database: "disconnected" });
+  }
+  return res.status(200).json({ status: "ok" });
+});
+
+app.get("/livez", (_req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
@@ -62,16 +69,27 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ message: "Server error" });
 });
 
-const startServer = async () => {
-  try {
-    await connectedDB();
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server listening on port ${PORT}`);
-    });
-  } catch (error) {
-    console.error("Server startup failed:", error.message);
-    process.exitCode = 1;
+const connectDBWithRetry = async () => {
+  let retryDelay = 1000;
+  const maxRetryDelay = 30000;
+
+  while (!isDBConnected()) {
+    try {
+      await connectedDB();
+    } catch (error) {
+      console.error(`Database connection failed; retrying in ${retryDelay / 1000} seconds.`, error.message);
+      await new Promise((resolve) => setTimeout(resolve, retryDelay));
+      retryDelay = Math.min(retryDelay * 2, maxRetryDelay);
+    }
   }
 };
 
-startServer();
+const server = app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server listening on port ${PORT}`);
+  void connectDBWithRetry();
+});
+
+server.on("error", (error) => {
+  console.error("HTTP server failed to start:", error.message);
+  process.exitCode = 1;
+});
