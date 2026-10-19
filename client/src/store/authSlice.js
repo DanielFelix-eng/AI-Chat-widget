@@ -2,35 +2,30 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 
 export const initializeAuth = createAsyncThunk(
   'auth/initialize',
-  async (_, { signal, rejectWithValue }) => {
-    const response = await fetch('/api/auth/verifyToken', {
-      credentials: 'include',
-      signal,
-    })
-
-    if (response.status === 401) return null
-
-    let result
+  async (_, { signal }) => {
     try {
-      result = await response.json()
-    } catch {
-      if (response.status >= 500) {
-        return rejectWithValue(
-          `The authentication service is unavailable (HTTP ${response.status}). Check the Suga deployment and confirm its public endpoint targets port 8000.`,
-        )
+      const response = await fetch('/api/auth/verifyToken', {
+        credentials: 'include',
+        signal,
+      })
+
+      if (response.status === 401) return null
+
+      let result
+      try {
+        result = await response.json()
+      } catch {
+        return null
       }
-      return rejectWithValue(`The authentication server returned an unreadable response (HTTP ${response.status}).`)
-    }
 
-    if (!response.ok) {
-      return rejectWithValue(result.message || 'Could not verify your session. Please try again.')
-    }
+      if (!response.ok || !result?.user) {
+        return null
+      }
 
-    if (!result.user) {
-      return rejectWithValue('The server did not return the authenticated user.')
+      return result.user
+    } catch {
+      return null
     }
-
-    return result.user
   },
   {
     condition: (_, { getState }) => {

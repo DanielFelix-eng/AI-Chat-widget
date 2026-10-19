@@ -1,9 +1,10 @@
 import express from 'express'
 import { signup, login, verifyEmail, resendVerification, resetPassword, forgotPassword, googleAuth, logout } from '../controllers/authController.js'
-import { verifyToken } from '../middleware/verify.js'
 import Company from '../models/company.js'
 import Subscription from '../models/subscription.js'
+import User from '../models/user.js'
 import { subscriptionHasAccess } from '../middleware/requirePlanAccess.js'
+import jwt from 'jsonwebtoken'
 
 const router = express.Router()
 
@@ -15,26 +16,43 @@ router.post('/verifyEmail', verifyToken, verifyEmail)
 router.post('/resendVerification', verifyToken, resendVerification)
 router.post('/forgotPassword', forgotPassword)
 router.post('/resetPassword', resetPassword)
-router.get('/verifyToken', verifyToken, async (req, res) => {
+router.get('/verifyToken', async (req, res) => {
     try {
+        const token = req.cookies?.token
+        if (!token) {
+            return res.status(200).json({ message: 'No session', user: null })
+        }
+
+        let decoded
+        try {
+            decoded = jwt.verify(token, process.env.JWT_SECRET)
+        } catch {
+            return res.status(200).json({ message: 'Invalid session', user: null })
+        }
+
+        const user = await User.findById(decoded.userId).select('name email companyId isVerified')
+        if (!user) {
+            return res.status(200).json({ message: 'User not found', user: null })
+        }
+
         const [company, subscription] = await Promise.all([
-            req.user.companyId
-                ? Company.findById(req.user.companyId).select('onboardingCompleted')
+            user.companyId
+                ? Company.findById(user.companyId).select('onboardingCompleted')
                 : null,
-            req.user.companyId
-                ? Subscription.findOne({ organizationId: req.user.companyId })
+            user.companyId
+                ? Subscription.findOne({ organizationId: user.companyId })
                     .select('status planKey trialEndsAt currentPeriodEnd')
-                : null,
+                    : null,
         ])
 
         return res.status(200).json({
             message: 'Token is valid',
             user: {
-                _id: req.user._id,
-                name: req.user.name,
-                email: req.user.email,
-                companyId: req.user.companyId,
-                isVerified: req.user.isVerified,
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                companyId: user.companyId,
+                isVerified: user.isVerified,
                 onboardingCompleted: company ? company.onboardingCompleted !== false : false,
                 subscription: subscription ? {
                     status: subscription.status,
@@ -48,7 +66,7 @@ router.get('/verifyToken', verifyToken, async (req, res) => {
         })
     } catch (error) {
         console.error('Could not load authentication subscription state:', error)
-        return res.status(500).json({ message: 'Could not verify your plan. Please try again.' })
+        return res.status(200).json({ message: 'Auth unavailable', user: null })
     }
 })
 export default router
