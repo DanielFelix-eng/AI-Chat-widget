@@ -1,5 +1,14 @@
 # Deployment
 
+## Netlify frontend
+
+Netlify's settings are defined in the repository-root `netlify.toml`; connect the repository and let Netlify detect that configuration. It sets the base directory to `client`, builds with `npm run build`, and publishes `dist`. Its redirects:
+
+- Proxies `/api/*` and `/widget.js` to the Suga backend.
+- Falls back to `/index.html` for frontend routes such as `/login`, preventing Netlify's page-not-found response on refresh or direct navigation.
+
+After deploying, set the Suga service's `CLIENT_URL` to the exact Netlify site origin (for example, `https://your-site.netlify.app`). If you use a custom domain, set it to that canonical origin. Keep the Suga URL in `netlify.toml` in sync if the backend hostname changes.
+
 ## Cloudflare frontend
 
 Deploy the React frontend as a Cloudflare Worker with static assets, keeping the API on Suga:
