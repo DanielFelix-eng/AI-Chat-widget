@@ -5,12 +5,12 @@
 Deploy the React frontend as a Cloudflare Worker with static assets, keeping the API on Suga:
 
 1. Deploy from the `client` directory using the settings in `wrangler.jsonc`. Build the frontend with `npm run build`, then deploy the Worker with `wrangler deploy`.
-2. Add `VITE_API_URL` as a Worker runtime variable for production (and preview/staging environments if used), with the base HTTPS origin of the deployed Suga service (for example, `https://your-api-host`). Do not add a path such as `/api` or a trailing route.
+2. `VITE_API_URL` is set in `wrangler.jsonc` to the deployed Suga origin. If Suga assigns a new URL, update it there and redeploy. Do not add a path such as `/api` or a trailing route.
 3. Set the Suga backend's `CLIENT_URL` to the frontend's deployed HTTPS origin (for example, `https://your-project.workers.dev`). If using a custom frontend domain, use that canonical origin instead.
 
 `client/worker.js` proxies `/api/*` and `/widget.js` to Suga before static asset handling. The browser therefore uses the Worker origin for API requests and auth cookies; the dashboard does not need browser CORS access to the Suga hostname. Widget API requests retain their origin so the backend's widget CORS policy can respond to embeds on other sites. Static assets use the SPA fallback for frontend routes.
 
-Set `VITE_API_URL` as a Cloudflare Worker runtime variable. Do not set it as a Vite build variable. The Worker reads it at request time, so a Suga URL change does not require rebuilding the frontend.
+`VITE_API_URL` is a non-secret Cloudflare Worker runtime variable set in `wrangler.jsonc`, not a Vite build variable. The Worker reads it at request time, so a Suga URL change requires a Worker redeploy but not rebuilding the frontend.
 
 ## Suga backend deployment
 

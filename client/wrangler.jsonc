@@ -2,6 +2,9 @@
   "name": "ai-chat-widget",
   "main": "./worker.js",
   "compatibility_date": "2026-10-01",
+  "vars": {
+    "VITE_API_URL": "https://5bsr20jk6w32-production-mmzqbgg0.us-central1.suga.run"
+  },
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
