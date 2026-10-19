@@ -1,5 +1,6 @@
 import express from 'express'
 import { signup, login, verifyEmail, resendVerification, resetPassword, forgotPassword, googleAuth, logout } from '../controllers/authController.js'
+import { verifyToken } from '../middleware/verify.js'
 import Company from '../models/company.js'
 import Subscription from '../models/subscription.js'
 import User from '../models/user.js'
