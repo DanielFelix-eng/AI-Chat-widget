@@ -3,6 +3,10 @@ import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import babel from '@rolldown/plugin-babel'
 import tailwindcss from '@tailwindcss/vite'
 
+// src/lib/api.js
+export const VITE_API_URL = import.meta.env.VITE_API_URL || "";
+
+
 
 
 
@@ -16,7 +20,7 @@ export default defineConfig({
      proxy: {
        // Shorthand for simple forwarding
        '/api': {
-         target: 'http://127.0.0.1:8000',
+         target: VITE_API_URL,
          changeOrigin: true,
        }
      }
