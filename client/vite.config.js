@@ -10,7 +10,6 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, envDir, 'VITE_')
 
   return {
-    envDir,
     plugins: [
       react(),
       babel({ presets: [reactCompilerPreset()] }),
