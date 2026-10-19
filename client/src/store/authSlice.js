@@ -14,7 +14,12 @@ export const initializeAuth = createAsyncThunk(
     try {
       result = await response.json()
     } catch {
-      return rejectWithValue('The server returned an unreadable authentication response.')
+      if (response.status >= 500) {
+        return rejectWithValue(
+          `The authentication service is unavailable (HTTP ${response.status}). Check the Suga deployment and confirm its public endpoint targets port 8000.`,
+        )
+      }
+      return rejectWithValue(`The authentication server returned an unreadable response (HTTP ${response.status}).`)
     }
 
     if (!response.ok) {
