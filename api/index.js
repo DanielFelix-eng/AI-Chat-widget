@@ -15,7 +15,7 @@
  import { dashboardCors, widgetCors } from "./db/cors.js"
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8000;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDist = path.resolve(__dirname, "../client/dist");
 
