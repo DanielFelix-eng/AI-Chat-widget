@@ -1,3 +1,5 @@
+import { apiUrl } from './api.js'
+
 export async function authRequest(path, { method = 'POST', ...payload } = {}) {
   // Detect if payload is a FormData instance (for file uploads)
   const isFormData = payload instanceof FormData
@@ -17,7 +19,7 @@ export async function authRequest(path, { method = 'POST', ...payload } = {}) {
     body = JSON.stringify(payload)
   }
 
-  const response = await fetch(`/api/auth/${path}`, {
+  const response = await fetch(apiUrl(`/api/auth/${path}`), {
     ...options,
     body,
   })

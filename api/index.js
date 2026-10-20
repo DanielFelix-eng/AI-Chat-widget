@@ -26,6 +26,13 @@ app.get("/healthz", (_req, res) => {
   return res.status(200).json({ status: "ok" });
 });
 
+app.get("/api/health", (_req, res) => {
+  if (!isDBConnected()) {
+    return res.status(503).json({ status: "not_ready", database: "disconnected" });
+  }
+  return res.status(200).json({ status: "ok" });
+});
+
 app.get("/livez", (_req, res) => {
   res.status(200).json({ status: "ok" });
 });

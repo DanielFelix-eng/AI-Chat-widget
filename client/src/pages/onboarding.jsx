@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useDispatch } from 'react-redux'
 import { initializeAuth } from '../store/authSlice.js'
+import { apiUrl } from '../lib/api.js'
 
 function Onboarding({ navigate }) {
   const dispatch = useDispatch()
@@ -16,7 +17,7 @@ function Onboarding({ navigate }) {
 
   useEffect(() => {
     let active = true
-    fetch('/api/company/me', { credentials: 'include' })
+    fetch(apiUrl('/api/company/me'), { credentials: 'include' })
       .then(async (response) => {
         const result = await response.json()
         if (!response.ok) {
@@ -59,7 +60,7 @@ function Onboarding({ navigate }) {
     setBusy(true)
 
     try {
-      const response = await fetch('/api/company/onboarding', {
+      const response = await fetch(apiUrl('/api/company/onboarding'), {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

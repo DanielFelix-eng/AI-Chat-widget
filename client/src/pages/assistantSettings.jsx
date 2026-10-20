@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Bot, Check, Copy, ExternalLink, LoaderCircle, MessageCircle, Save, ShieldCheck, Sparkles } from 'lucide-react'
+import { apiUrl as buildApiUrl, API_URL } from '../lib/api.js'
 import './assistantSettings.css'
 
 const DEFAULT_SETTINGS = {
@@ -30,7 +31,7 @@ function AssistantSettings() {
 
   useEffect(() => {
     let active = true
-    fetch('/api/company/me', { credentials: 'include' })
+    fetch(buildApiUrl('/api/company/me'), { credentials: 'include' })
       .then(async (response) => {
         let result
         try {
@@ -68,14 +69,14 @@ function AssistantSettings() {
     if (!company?.widgetPublicKey) return ''
     let parsedApiUrl
     try {
-      parsedApiUrl = new URL(apiUrl.trim())
+      parsedApiUrl = new URL(API_URL.trim())
     } catch {
       return ''
     }
     if (!['http:', 'https:'].includes(parsedApiUrl.protocol)) return ''
     const base = parsedApiUrl.origin
     return `<script src="${base}/widget.js" data-api-url="${base}" data-public-key="${company.widgetPublicKey}" async></script>`
-  }, [apiUrl, company])
+  }, [API_URL, company])
 
   const update = (key, value) => {
     setSettings((current) => ({ ...current, [key]: value }))
@@ -89,7 +90,7 @@ function AssistantSettings() {
     setSaving(true)
 
     try {
-      const response = await fetch('/api/company/widget-config', {
+      const response = await fetch(buildApiUrl('/api/company/widget-config'), {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

@@ -1,10 +1,11 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
+import { apiUrl } from '../lib/api.js'
 
 export const initializeAuth = createAsyncThunk(
   'auth/initialize',
   async (_, { signal }) => {
     try {
-      const response = await fetch('/api/auth/verifyToken', {
+      const response = await fetch(apiUrl('/api/auth/verifyToken'), {
         credentials: 'include',
         signal,
       })

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { ArrowRight, Check, Clock3, CreditCard, LoaderCircle, ShieldCheck, Sparkles } from 'lucide-react'
 import { initializeAuth } from '../../store/authSlice.js'
+import { apiUrl } from '../../lib/api.js'
 import './pricing.css'
 
 const plans = [
@@ -50,7 +51,7 @@ function Pricing({ navigate }) {
     const checkPayment = async () => {
       if (completing) return
       try {
-        const response = await fetch(`/api/billing/transactions/${encodeURIComponent(payment.reference)}`, {
+        const response = await fetch(apiUrl(`/api/billing/transactions/${encodeURIComponent(payment.reference)}`), {
           credentials: 'include',
         })
         const result = await readResponse(response)
@@ -81,7 +82,7 @@ function Pricing({ navigate }) {
     setBusy(true)
     setError('')
     try {
-      await readResponse(await fetch('/api/billing/trial', {
+      await readResponse(await fetch(apiUrl('/api/billing/trial'), {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -104,7 +105,7 @@ function Pricing({ navigate }) {
     setBusy(true)
     setError('')
     try {
-      const result = await readResponse(await fetch('/api/billing/mpesa/charge', {
+      const result = await readResponse(await fetch(apiUrl('/api/billing/mpesa/charge'), {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

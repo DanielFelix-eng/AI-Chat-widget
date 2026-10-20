@@ -4,12 +4,6 @@
   publish = "dist"
 
 [[redirects]]
-  from = "/api/*"
-  to = "https://5bsr20jk6w32-production-mmzqbgg0.us-central1.suga.run/api/:splat"
-  status = 200
-  force = true
-
-[[redirects]]
   from = "/widget.js"
   to = "https://5bsr20jk6w32-production-mmzqbgg0.us-central1.suga.run/widget.js"
   status = 200

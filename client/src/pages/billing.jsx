@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { AlertCircle, ArrowLeft, Check, CheckCircle2, CreditCard, LoaderCircle, ShieldCheck, Smartphone, Sparkles } from 'lucide-react'
+import { apiUrl } from '../lib/api.js'
 import './billing.css'
 
 const plans = [
@@ -45,7 +46,7 @@ function BillingPage({ currentPlan = 'free', onPlanActivated }) {
     let active = true
     const checkPayment = async () => {
       try {
-        const response = await fetch(`/api/billing/transactions/${encodeURIComponent(payment.reference)}`, {
+        const response = await fetch(apiUrl(`/api/billing/transactions/${encodeURIComponent(payment.reference)}`), {
           credentials: 'include',
         })
         const result = await readBillingResponse(response)
@@ -79,7 +80,7 @@ function BillingPage({ currentPlan = 'free', onPlanActivated }) {
     setNotice('')
     setBusy(true)
     try {
-      const response = await fetch('/api/billing/mpesa/charge', {
+      const response = await fetch(apiUrl('/api/billing/mpesa/charge'), {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

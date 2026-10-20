@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Bot, BookOpen, LoaderCircle, RotateCcw, Send, Sparkles } from 'lucide-react'
+import { apiUrl } from '../lib/api.js'
 import './chat.css'
 
 const DEFAULT_GREETING = 'Hi! How can I help you today?'
@@ -17,7 +18,7 @@ function Chat() {
   useEffect(() => {
     let active = true
 
-    fetch('/api/company/me', { credentials: 'include' })
+    fetch(apiUrl('/api/company/me'), { credentials: 'include' })
       .then(async (response) => {
         let result
         try {
@@ -67,7 +68,7 @@ function Chat() {
     setIsSubmitting(true)
 
     try {
-      const response = await fetch('/api/chat/test', {
+      const response = await fetch(apiUrl('/api/chat/test'), {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

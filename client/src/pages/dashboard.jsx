@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
+import { apiUrl } from '../lib/api.js'
 import {
   AlertCircle,
   ArrowUpRight,
@@ -81,7 +82,7 @@ function WorkspacePage({ company, onSaved }) {
     setBusy(true)
 
     try {
-      const response = await fetch('/api/company/onboarding', {
+      const response = await fetch(apiUrl('/api/company/onboarding'), {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -236,7 +237,7 @@ function Dashboard({ navigate }) {
 
   useEffect(() => {
     const controller = new AbortController()
-    fetch('/api/company/me', { credentials: 'include', signal: controller.signal })
+    fetch(apiUrl('/api/company/me'), { credentials: 'include', signal: controller.signal })
       .then(async (response) => {
         let result
         try {
@@ -267,7 +268,7 @@ function Dashboard({ navigate }) {
 
   useEffect(() => {
     const controller = new AbortController()
-    fetch('/api/chat/activity?period=' + period, { credentials: 'include', signal: controller.signal })
+    fetch(apiUrl('/api/chat/activity?period=' + period), { credentials: 'include', signal: controller.signal })
       .then(async (response) => {
         let result
         try {
@@ -294,7 +295,7 @@ function Dashboard({ navigate }) {
 
   useEffect(() => {
     const controller = new AbortController()
-    fetch('/api/chat/metrics?period=' + period, { credentials: 'include', signal: controller.signal })
+    fetch(apiUrl('/api/chat/metrics?period=' + period), { credentials: 'include', signal: controller.signal })
       .then(async (response) => {
         let result
         try {
@@ -317,7 +318,7 @@ function Dashboard({ navigate }) {
 
   useEffect(() => {
     const controller = new AbortController()
-    fetch('/api/chat/recent', { credentials: 'include', signal: controller.signal })
+    fetch(apiUrl('/api/chat/recent'), { credentials: 'include', signal: controller.signal })
       .then(async (response) => {
         let result
         try {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AlertCircle, Check, Clock3, FileText, LoaderCircle, RefreshCw, Upload, X } from 'lucide-react'
+import { apiUrl } from '../lib/api.js'
 import './knowledgebase.css'
 
 const ACCEPTED_TYPES = '.pdf,.txt,.md'
@@ -37,7 +38,7 @@ function KnowledgeBase() {
   const [uploading, setUploading] = useState(false)
 
   const loadDocuments = useCallback(async (signal) => {
-    const response = await fetch('/api/documents', {
+      const response = await fetch(apiUrl('/api/documents'), {
       credentials: 'include',
       signal,
     })
@@ -48,7 +49,7 @@ function KnowledgeBase() {
 
   useEffect(() => {
     const controller = new AbortController()
-    fetch('/api/documents', {
+    fetch(apiUrl('/api/documents'), {
       credentials: 'include',
       signal: controller.signal,
     })
@@ -106,7 +107,7 @@ function KnowledgeBase() {
     formData.append('file', selectedFile)
 
     try {
-      const response = await fetch('/api/documents', {
+    const response = await fetch(apiUrl('/api/documents'), {
         method: 'POST',
         credentials: 'include',
         body: formData,
