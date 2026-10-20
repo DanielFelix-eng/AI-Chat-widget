@@ -10,6 +10,7 @@ const allowedOrigins = [
     ...configuredOrigins,
     process.env.RENDER_EXTERNAL_URL,
     process.env.CLIENT_URL,
+    "https://nudge-ai-chat.netlify.app",
   ].filter(Boolean).map((origin) => origin.replace(/\/$/, ""))),
 ];
 
