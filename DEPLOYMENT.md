@@ -2,12 +2,22 @@
 
 ## Netlify frontend
 
-Netlify's settings are defined in the repository-root `netlify.toml`; connect the repository and let Netlify detect that configuration. It sets the base directory to `client`, builds with `npm run build`, and publishes `dist`. Its redirects:
+Netlify serves the Vite frontend and runs the Express API through `netlify/functions/api.js`. Connect the repository and use the settings in `netlify.toml`; the build publishes `client/dist`, routes `/api/*` and `/widget.js` to the function, and falls back to `index.html` for frontend routes.
 
-- Proxies `/api/*` and `/widget.js` to the Suga backend.
-- Falls back to `/index.html` for frontend routes such as `/login`, preventing Netlify's page-not-found response on refresh or direct navigation.
+Set these variables in **Netlify project settings → Environment variables** before deploying:
 
-After deploying, set the Suga service's `CLIENT_URL` to the exact Netlify site origin (for example, `https://your-site.netlify.app`). If you use a custom domain, set it to that canonical origin. Keep the Suga URL in `netlify.toml` in sync if the backend hostname changes.
+- `NODE_ENV=production`
+- `MONGO_URI` and, optionally, `MONGO_DB_NAME`
+- `JWT_SECRET` (use a long, randomly generated value)
+- `LLM_API_KEY`, `LLM_BASE_URL`, and `LLM_MODEL`
+- `VOYAGE_API_KEY`, `VOYAGE_MODEL`, and `EMBEDDING_DIMENSIONS`
+- `PAYSTACK_SECRET_KEY`
+- `BREVO_API_KEY`, `EMAIL_FROM_ADDRESS`, and optionally `EMAIL_FROM_NAME`
+- `CLIENT_URL` to the canonical Netlify site origin; set it to your custom domain origin if you use one
+
+Netlify supplies `URL` and `DEPLOY_PRIME_URL` for CORS on production and deploy previews. After deployment, configure the Paystack webhook URL as `https://<your-netlify-domain>/api/webhooks/paystack`.
+
+Netlify Functions are stateless and have request-duration and payload limits. The current document upload path writes files to local disk and starts ingestion in-process; local files are not durable and in-process work is not a reliable background queue on Netlify. For production document uploads, move file storage to durable object storage and run ingestion through a persistent worker/queue. Netlify's function payload limit can also be lower than the application's 10 MB upload limit, so large uploads should go directly to object storage.
 
 ## Cloudflare frontend
 

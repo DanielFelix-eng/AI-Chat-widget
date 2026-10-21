@@ -1,7 +1,7 @@
 
  import "./env.js"; // must be first
  import express from "express";
- import { fileURLToPath } from "node:url";
+ import { fileURLToPath, pathToFileURL } from "node:url";
  import path from "node:path";
  import { connectedDB, isDBConnected } from "./db/db.js";
  import cookieParser from "cookie-parser";
@@ -14,7 +14,7 @@
  import webhookRoutes from "./routes/webhook.js";
  import { dashboardCors, widgetCors } from "./db/cors.js"
 
-const app = express();
+export const app = express();
 const PORT = process.env.PORT || 8000;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDist = path.resolve(__dirname, "../client/dist");
@@ -91,12 +91,18 @@ const connectDBWithRetry = async () => {
   }
 };
 
-const server = app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server listening on port ${PORT}`);
-  void connectDBWithRetry();
-});
+const isMainModule =
+  process.argv[1] &&
+  pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
 
-server.on("error", (error) => {
-  console.error("HTTP server failed to start:", error.message);
-  process.exitCode = 1;
-});
+if (isMainModule) {
+  const server = app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server listening on port ${PORT}`);
+    void connectDBWithRetry();
+  });
+
+  server.on("error", (error) => {
+    console.error("HTTP server failed to start:", error.message);
+    process.exitCode = 1;
+  });
+}
