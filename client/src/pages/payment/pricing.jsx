@@ -102,6 +102,12 @@ function Pricing({ navigate }) {
     const plan = plans.find(({ key }) => key === selectedPlan)
     if (!plan) return
 
+    const cleanedPhone = phone.replace(/\s+/g, '').replace(/[^\d+]/g, '')
+    if (!cleanedPhone) {
+      setError('Please enter your M-Pesa phone number.')
+      return
+    }
+
     setBusy(true)
     setError('')
     try {
@@ -109,7 +115,7 @@ function Pricing({ navigate }) {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planKey: plan.key, interval: 'monthly', phone }),
+        body: JSON.stringify({ planKey: plan.key, interval: 'monthly', phone: cleanedPhone }),
       }))
       setPayment({ reference: result.reference, status: 'pending', planKey: plan.key })
     } catch (requestError) {

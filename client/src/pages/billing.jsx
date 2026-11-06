@@ -76,6 +76,12 @@ function BillingPage({ currentPlan = 'free', onPlanActivated }) {
     event.preventDefault()
     if (!selectedPlan) return
 
+    const cleanedPhone = phone.replace(/\s+/g, '').replace(/[^\d+]/g, '')
+    if (!cleanedPhone) {
+      setError('Please enter your M-Pesa phone number.')
+      return
+    }
+
     setError('')
     setNotice('')
     setBusy(true)
@@ -84,7 +90,7 @@ function BillingPage({ currentPlan = 'free', onPlanActivated }) {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planKey: selectedPlan.key, interval: 'monthly', phone }),
+        body: JSON.stringify({ planKey: selectedPlan.key, interval: 'monthly', phone: cleanedPhone }),
       })
       const result = await readBillingResponse(response)
       setPayment({ ...result, status: 'pending', planKey: selectedPlan.key })

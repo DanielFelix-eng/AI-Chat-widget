@@ -243,9 +243,10 @@ router.post("/trial", verifyToken, startTrial);
 router.post("/free", verifyToken, startTrial);
 
 router.post("/mpesa/charge", verifyToken, applyRateLimit, checkUserPendingLimit, async (req, res) => {
-  const { planKey, phone } = req.body;
+  const rawPlanKey = (req.body?.planKey || req.body?.plan || '').toString().trim().toLowerCase();
+  const rawPhone = (req.body?.phone || req.body?.phoneNumber || req.body?.mobile || '').toString().trim();
   const companyId = req.user.companyId;
-  const planConfig = getPlanConfig(planKey);
+  const planConfig = getPlanConfig(rawPlanKey);
 
   if (!companyId) {
     return res.status(403).json({ message: "User is not associated with a company." });
@@ -261,7 +262,7 @@ router.post("/mpesa/charge", verifyToken, applyRateLimit, checkUserPendingLimit,
     return res.status(503).json({ message: "Payments are temporarily unavailable." });
   }
 
-  const normalizedPhone = normalizeKenyanPhone(phone);
+  const normalizedPhone = normalizeKenyanPhone(rawPhone);
   if (!normalizedPhone) {
     return res.status(400).json({ message: "Enter a valid Kenyan phone number in the format 254XXXXXXXXX." });
   }
@@ -278,7 +279,7 @@ router.post("/mpesa/charge", verifyToken, applyRateLimit, checkUserPendingLimit,
       amount: planConfig.amount,
       currency: planConfig.currency,
       status: "pending",
-      planKey,
+      planKey: rawPlanKey,
       interval: planConfig.interval,
       phoneMasked: maskKenyanPhone(normalizedPhone),
     });
@@ -298,7 +299,7 @@ router.post("/mpesa/charge", verifyToken, applyRateLimit, checkUserPendingLimit,
           currency: planConfig.currency,
           reference,
           mobile_money: { phone: normalizedPhone, provider: "mpesa" },
-          metadata: { organizationId: String(companyId), planKey, interval: planConfig.interval },
+          metadata: { organizationId: String(companyId), planKey: rawPlanKey, interval: planConfig.interval },
         }),
       });
       body = await response.json();
