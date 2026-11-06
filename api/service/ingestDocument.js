@@ -69,6 +69,7 @@ export async function ingestDocument(documentId) {
         await Document.findByIdAndUpdate(doc._id, {
             status: 'ready',
             chunkCount: chunks.length,
+            pageCount: pages.length,
             errorMessage: null,
         });
 

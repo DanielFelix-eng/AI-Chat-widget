@@ -1,4 +1,5 @@
 import Subscription from "../models/subscription.js";
+import Company from "../models/company.js";
 
 export const subscriptionHasAccess = (subscription, now = new Date()) => {
   if (subscription?.status === "active") {
@@ -25,18 +26,29 @@ export const requirePlanAccess = async (req, res, next) => {
   }
 
   try {
-    const subscription = await Subscription.findOne({
-      organizationId: req.user.companyId,
-    }).select("status trialEndsAt currentPeriodEnd");
+    const [company, subscription] = await Promise.all([
+      Company.findOne({ ownerUserId: req.user._id }).select('plan planStatus'),
+      Subscription.findOne({ organizationId: req.user.companyId }).select("status trialEndsAt currentPeriodEnd")
+    ]);
 
-    if (!subscriptionHasAccess(subscription)) {
+    if (company && company.planStatus && company.planStatus !== 'active') {
       return res.status(402).json({
         code: "PLAN_REQUIRED",
         message: "Choose a plan to continue.",
       });
     }
 
+    if (!subscriptionHasAccess(subscription)) {
+      if (!company || company.planStatus === 'active') {
+        return res.status(402).json({
+          code: "PLAN_REQUIRED",
+          message: "Choose a plan to continue.",
+        });
+      }
+    }
+
     req.subscription = subscription;
+    req.company = company;
     return next();
   } catch (error) {
     console.error("Could not verify workspace subscription:", error);

@@ -1,4 +1,5 @@
 import Company from '../models/company.js'
+import DomainClaim from '../models/domainClaim.js'
 import { retrieveChunks } from '../service/retrieve.js'
 import { buildContextMessage, NO_ANSWER_MESSAGE, SYSTEM_PROMPT } from '../service/prompt.js'
 import { streamAnswer } from '../service/llm.js'
@@ -7,6 +8,9 @@ import { subscriptionHasAccess } from '../middleware/requirePlanAccess.js'
 import ChatSession from '../models/chatSession.js'
 import ChatMessage from '../models/chatMessage.js'
 import crypto from 'node:crypto'
+import { reserveReply, releaseReply } from '../utils/workspaceLimits.js'
+import { getPlanConfig } from '../plans.js'
+import { normalizeDomainInput } from '../utils/domainUtils.js'
 
 const MAX_MESSAGE_CHARS = 2000
 const MAX_HISTORY_MESSAGES = 8
@@ -103,7 +107,7 @@ async function persistConversationTurn(company, visitorId, message, result) {
     ])
 }
 
-function originIsAllowed(req, company) {
+async function originIsAllowed(req, company) {
     const origin = req.get('origin')
     if (!origin) return false
 
@@ -114,9 +118,21 @@ function originIsAllowed(req, company) {
         return false
     }
 
-    return company.allowedDomains.some((domain) =>
-        domain.toLowerCase().replace(/^www\./, '') === hostname
+    const normalizedHostname = normalizeDomainInput(hostname) || hostname
+    const allowedDomains = new Set(
+        (company.allowedDomains || []).map((domain) => normalizeDomainInput(domain) || String(domain).trim().toLowerCase())
     )
+
+    const verifiedDomains = await DomainClaim.find({
+        workspaceId: company._id,
+        verificationStatus: 'verified',
+    }).select('normalizedDomain').lean()
+
+    for (const domain of verifiedDomains) {
+        if (domain.normalizedDomain) allowedDomains.add(domain.normalizedDomain)
+    }
+
+    return [...allowedDomains].some((domain) => domain === normalizedHostname)
 }
 
 async function findAuthorizedCompany(req, res) {
@@ -125,7 +141,7 @@ async function findAuthorizedCompany(req, res) {
         res.status(404).json({ message: 'Widget not found or disabled.' })
         return null
     }
-    if (!originIsAllowed(req, company)) {
+    if (!(await originIsAllowed(req, company))) {
         res.status(403).json({ message: 'This website is not allowed to use the widget.' })
         return null
     }
@@ -148,6 +164,7 @@ export const getPublicWidgetConfig = async (req, res) => {
             greeting: company.widgetConfig.greeting,
             primaryColor: company.widgetConfig.primaryColor,
             position: company.widgetConfig.position,
+            limitMessage: company.widgetConfig.limitMessage || 'Our assistant is unavailable right now. Please contact us to upgrade.',
         })
     } catch (error) {
         console.error('Could not load public widget configuration:', error)
@@ -166,9 +183,24 @@ export const answerWidgetMessage = async (req, res) => {
         const company = await findAuthorizedCompany(req, res)
         if (!company) return
 
-        const result = await generateAssistantReply(company, message, req.body.history)
-        await persistConversationTurn(company, req.body.visitorId, message, result)
-        return res.status(200).json({ answer: result.answer })
+        const replyReservation = await reserveReply(company._id)
+        if (!replyReservation.allowed) {
+            return res.status(403).json({
+                code: replyReservation.code,
+                plan: company.plan,
+                limit: replyReservation.limit,
+                message: company.widgetConfig?.limitMessage || getPlanConfig(company.plan)?.openWidgetMessage || 'Our assistant is unavailable right now. Please contact us to upgrade.',
+            })
+        }
+
+        try {
+            const result = await generateAssistantReply(company, message, req.body.history)
+            await persistConversationTurn(company, req.body.visitorId, message, result)
+            return res.status(200).json({ answer: result.answer })
+        } catch (error) {
+            await releaseReply(company._id)
+            throw error
+        }
     } catch (error) {
         console.error('Widget reply failed:', error)
         return res.status(502).json({ message: 'The assistant could not respond. Please try again later.' })
@@ -188,9 +220,24 @@ export const answerTestMessage = async (req, res) => {
             return res.status(404).json({ message: 'Complete company onboarding before testing your assistant.' })
         }
 
-        const result = await generateAssistantReply(company, message, req.body.history)
-        await persistConversationTurn(company, req.body.visitorId, message, result)
-        return res.status(200).json(result)
+        const replyReservation = await reserveReply(company._id)
+        if (!replyReservation.allowed) {
+            return res.status(403).json({
+                code: replyReservation.code,
+                message: company.widgetConfig?.limitMessage || getPlanConfig(company.plan)?.openWidgetMessage || 'Your plan limit has been reached.',
+                plan: company.plan,
+                limit: replyReservation.limit,
+            })
+        }
+
+        try {
+            const result = await generateAssistantReply(company, message, req.body.history)
+            await persistConversationTurn(company, req.body.visitorId, message, result)
+            return res.status(200).json(result)
+        } catch (error) {
+            await releaseReply(company._id)
+            throw error
+        }
     } catch (error) {
         console.error('Assistant test reply failed:', error)
         return res.status(502).json({ message: 'The assistant could not respond. Please try again later.' })

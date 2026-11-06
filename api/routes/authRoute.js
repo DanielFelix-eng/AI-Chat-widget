@@ -5,11 +5,12 @@ import Company from '../models/company.js'
 import Subscription from '../models/subscription.js'
 import User from '../models/user.js'
 import { subscriptionHasAccess } from '../middleware/requirePlanAccess.js'
+import { signupLimiter } from '../middleware/rateLimit.js'
 import jwt from 'jsonwebtoken'
 
 const router = express.Router()
 
-router.post('/signup', signup)
+router.post('/signup', signupLimiter, signup)
 router.post('/login', login)
 router.post('/google', googleAuth)
 router.post('/logout', logout)

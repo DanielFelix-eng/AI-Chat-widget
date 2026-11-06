@@ -12,6 +12,14 @@ async function ensureWorkspace(user) {
         company = await Company.create({
             name: user.name || 'My workspace',
             ownerUserId: user._id,
+            plan: 'free',
+            planStatus: 'active',
+            currentPeriodStart: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+            usage: {
+                repliesThisPeriod: 0,
+                documentsCount: 0,
+                widgetsCount: 0,
+            },
             widgetPublicKey: crypto.randomBytes(24).toString('hex'),
             onboardingCompleted: false,
         })

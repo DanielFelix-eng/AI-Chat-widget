@@ -37,6 +37,10 @@ const documentSchema = new mongoose.Schema(
             type: Number,
             default: null,
         },
+        pageCount: {
+            type: Number,
+            default: 1,
+        },
         // SHA-256 of the file, used to reject duplicate uploads
         contentHash: {
             type: String,

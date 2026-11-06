@@ -1,6 +1,7 @@
 import crypto from 'crypto'
 import Company from '../models/company.js'
 import User from '../models/user.js'
+import { DEFAULT_PLAN, getCurrentPeriodStart } from '../plans.js'
 
 const normalizeWebsite = (value) => {
     const website = String(value || '').trim()
@@ -59,13 +60,27 @@ export const saveOnboarding = async (req, res) => {
                     website: website?.toString() || null,
                     onboardingCompleted: true,
                     allowedDomains: website ? [website.hostname.replace(/^www\./i, '')] : [],
+                    plan: DEFAULT_PLAN,
+                    planStatus: 'active',
+                    currentPeriodStart: getCurrentPeriodStart(new Date()),
+                    'usage.widgetsCount': 1,
                     'widgetConfig.primaryColor': primaryColor.toUpperCase(),
                     'widgetConfig.botName': botName,
                     'widgetConfig.greeting': greeting,
+                    'widgetConfig.limitMessage': 'Our assistant is unavailable right now. Please contact us to upgrade.',
+                    'widgetConfig.branding': 'Powered by Nudge',
                 },
                 $setOnInsert: {
                     ownerUserId: req.user._id,
                     widgetPublicKey: crypto.randomBytes(24).toString('hex'),
+                    plan: DEFAULT_PLAN,
+                    planStatus: 'active',
+                    currentPeriodStart: getCurrentPeriodStart(new Date()),
+                    usage: {
+                        repliesThisPeriod: 0,
+                        documentsCount: 0,
+                        widgetsCount: 1,
+                    },
                 },
             },
             { returnDocument: 'after', upsert: true, runValidators: true, setDefaultsOnInsert: true }
@@ -130,6 +145,7 @@ export const updateWidgetConfig = async (req, res) => {
                     'widgetConfig.primaryColor': primaryColor.toUpperCase(),
                     'widgetConfig.position': position,
                     'widgetConfig.enabled': req.body.enabled !== false,
+                    'widgetConfig.limitMessage': String(req.body.limitMessage || 'Our assistant is unavailable right now. Please contact us to upgrade.').slice(0, 180),
                 },
             },
             { new: true, runValidators: true }
@@ -143,5 +159,52 @@ export const updateWidgetConfig = async (req, res) => {
     } catch (error) {
         console.error('Failed to update widget configuration:', error)
         return res.status(500).json({ message: 'Could not save widget settings. Please try again.' })
+    }
+}
+
+export const getUsage = async (req, res) => {
+    try {
+        const company = await Company.findOne({ ownerUserId: req.user._id })
+            .select('plan planStatus currentPeriodStart usage usageWarningsSent widgetConfig')
+
+        if (!company) {
+            return res.status(404).json({ message: 'Set up your workspace before checking usage.' })
+        }
+
+        const plan = getPlanConfig(company.plan || DEFAULT_PLAN)
+        const resetAt = company.currentPeriodStart ? new Date(company.currentPeriodStart.getTime()) : new Date();
+        resetAt.setMonth(resetAt.getMonth() + 1)
+
+        const usage = {
+            replies: {
+                used: Number(company.usage?.repliesThisPeriod || 0),
+                limit: plan.maxRepliesPerMonth,
+                remaining: Math.max(0, plan.maxRepliesPerMonth - Number(company.usage?.repliesThisPeriod || 0)),
+                warning: Number(company.usage?.repliesThisPeriod || 0) >= plan.maxRepliesPerMonth * 0.8,
+            },
+            documents: {
+                used: Number(company.usage?.documentsCount || 0),
+                limit: plan.maxDocuments,
+                remaining: Math.max(0, plan.maxDocuments - Number(company.usage?.documentsCount || 0)),
+                warning: Number(company.usage?.documentsCount || 0) >= plan.maxDocuments * 0.8,
+            },
+            widgets: {
+                used: Number(company.usage?.widgetsCount || 0),
+                limit: plan.maxWidgets,
+                remaining: Math.max(0, plan.maxWidgets - Number(company.usage?.widgetsCount || 0)),
+                warning: Number(company.usage?.widgetsCount || 0) >= plan.maxWidgets * 0.8,
+            },
+        }
+
+        return res.status(200).json({
+            plan: company.plan || DEFAULT_PLAN,
+            planStatus: company.planStatus || 'active',
+            resetAt,
+            usage,
+            limitMessage: company.widgetConfig?.limitMessage || 'Our assistant is unavailable right now. Please contact us to upgrade.',
+        })
+    } catch (error) {
+        console.error('Failed to load usage:', error)
+        return res.status(500).json({ message: 'Could not load workspace usage.' })
     }
 }

@@ -27,6 +27,40 @@ const companySchema = new mongoose.Schema(
             type: [String],
             default: [],
         },
+        plan: {
+            type: String,
+            enum: ['free', 'pro', 'business'],
+            default: 'free',
+            index: true,
+        },
+        planStatus: {
+            type: String,
+            enum: ['active', 'grace', 'paused', 'expired'],
+            default: 'active',
+            index: true,
+        },
+        currentPeriodStart: {
+            type: Date,
+            default: null,
+        },
+        usage: {
+            repliesThisPeriod: {
+                type: Number,
+                default: 0,
+            },
+            documentsCount: {
+                type: Number,
+                default: 0,
+            },
+            widgetsCount: {
+                type: Number,
+                default: 0,
+            },
+        },
+        usageWarningsSent: {
+            replies80: { type: Boolean, default: false },
+            replies100: { type: Boolean, default: false },
+        },
         widgetConfig: {
             primaryColor: {
                 type: String,
@@ -53,9 +87,17 @@ const companySchema = new mongoose.Schema(
                 type: String,
                 default: 'Support assistant',
             },
+            limitMessage: {
+                type: String,
+                default: 'Our assistant is unavailable right now. Please contact us to upgrade.',
+            },
+            branding: {
+                type: String,
+                default: 'Powered by Nudge',
+            },
             plan: {
                 type: String,
-                enum: ['free', 'starter', 'pro', 'enterprise'],
+                enum: ['free', 'pro', 'business'],
                 default: 'free',
             },
             usageLimits: {

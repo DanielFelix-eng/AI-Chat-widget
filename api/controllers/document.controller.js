@@ -3,9 +3,12 @@ import path from "path";
 import crypto from "crypto";
 import { createReadStream } from "fs";
 import Document from "../models/documents.js";
-import  {enqueueIngestion}  from "../service/queu.js"
+import Company from "../models/company.js";
+import { enqueueIngestion } from "../service/queu.js";
+import { extractText } from "../service/extract.js";
+import { ensureDocumentLimit, incrementDocumentCount } from "../utils/workspaceLimits.js";
+import { getPlanConfig } from "../plans.js";
 
-// File extension -> Document.sourceType
 const SOURCE_TYPE_BY_EXT = {
   ".pdf": "pdf",
   ".txt": "text",
@@ -23,7 +26,6 @@ const hashFile = (filePath) =>
       .on("error", reject);
   });
 
-// Real PDFs start with "%PDF-". Catches files renamed to .pdf.
 const looksLikePdf = async (filePath) => {
   const handle = await fs.open(filePath, "r");
   try {
@@ -35,6 +37,10 @@ const looksLikePdf = async (filePath) => {
   }
 };
 
+const countPages = async (filePath, originalName) => {
+  const pages = await extractText({ storagePath: filePath, originalName });
+  return pages.length;
+};
 
 export const uploadDocument = async (req, res, next) => {
   const file = req.file;
@@ -49,6 +55,14 @@ export const uploadDocument = async (req, res, next) => {
       return res.status(409).json({ message: "Set up your company workspace before uploading documents." });
     }
 
+    const company = await Company.findById(companyId).select('plan usage');
+    const plan = getPlanConfig(company?.plan || 'free');
+    const docLimit = await ensureDocumentLimit(companyId);
+    if (!docLimit.allowed) {
+      await safeUnlink(file.path);
+      return res.status(403).json({ code: docLimit.code, message: docLimit.message, plan: company?.plan || 'free' });
+    }
+
     const ext = path.extname(file.originalname).toLowerCase();
     const sourceType = SOURCE_TYPE_BY_EXT[ext];
     if (!sourceType) {
@@ -56,12 +70,22 @@ export const uploadDocument = async (req, res, next) => {
       return res.status(400).json({ message: "Unsupported file type. Allowed: PDF, TXT, MD" });
     }
 
+    if (file.size > plan.maxDocumentSizeMB * 1024 * 1024) {
+      await safeUnlink(file.path);
+      return res.status(413).json({ code: 'PLAN_LIMIT_REACHED', message: `File too large for ${plan.label}. Max ${plan.maxDocumentSizeMB} MB per document.`, plan: company?.plan || 'free', limit: 'maxDocumentSizeMB' });
+    }
+
     if (ext === ".pdf" && !(await looksLikePdf(file.path))) {
       await safeUnlink(file.path);
       return res.status(400).json({ message: "File is not a valid PDF" });
     }
 
-    // Skip exact duplicates within the same company
+    const pageCount = ext === '.pdf' ? await countPages(file.path, file.originalname) : 1;
+    if (pageCount > plan.maxPagesPerDocument) {
+      await safeUnlink(file.path);
+      return res.status(403).json({ code: 'PLAN_LIMIT_REACHED', message: `This file exceeds the ${plan.maxPagesPerDocument}-page limit for your plan.`, plan: company?.plan || 'free', limit: 'maxPagesPerDocument' });
+    }
+
     const contentHash = await hashFile(file.path);
     const duplicate = await Document.findOne({
       companyId,
@@ -84,17 +108,18 @@ export const uploadDocument = async (req, res, next) => {
       originalName: file.originalname,
       mimeType: file.mimetype,
       size: file.size,
-      storagePath: file.path, // swap for an S3/R2 key later
+      pageCount,
+      storagePath: file.path,
       contentHash,
       status: "pending",
     });
 
-    // Fire and forget: the request must not wait for extraction/embedding
+    await incrementDocumentCount(companyId, 1);
+
     enqueueIngestion(document._id).catch((err) =>
       console.error(`[ingestion] failed to enqueue ${document._id}:`, err)
     );
 
-    // 202 Accepted: processing continues in the background
     return res.status(202).json({ document });
   } catch (err) {
     await safeUnlink(file?.path);
@@ -110,7 +135,7 @@ export const listDocuments = async (req, res, next) => {
     }
 
     const documents = await Document.find({ companyId })
-      .select("originalName sourceType size status errorMessage chunkCount createdAt updatedAt")
+      .select("originalName sourceType size status errorMessage chunkCount createdAt updatedAt pageCount")
       .sort({ createdAt: -1 })
       .lean();
 
