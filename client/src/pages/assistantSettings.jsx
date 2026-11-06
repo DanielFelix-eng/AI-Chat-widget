@@ -12,6 +12,8 @@ const DEFAULT_SETTINGS = {
   allowedDomains: [],
 }
 
+const WIDGET_SCRIPT_URL = (import.meta.env.VITE_WIDGET_SCRIPT_URL || 'https://app.jardini.xyz').replace(/\/$/, '')
+
 function parseDomains(value) {
   return value.split(/[\n,]+/).map((domain) => domain.trim()).filter(Boolean)
 }
@@ -75,7 +77,7 @@ function AssistantSettings() {
     }
     if (!['http:', 'https:'].includes(parsedApiUrl.protocol)) return ''
     const base = parsedApiUrl.origin
-    return `<script src="${base}/widget.js" data-api-url="${base}" data-public-key="${company.widgetPublicKey}" async></script>`
+    return `<script src="${WIDGET_SCRIPT_URL}/widget.js" data-api-url="${base}" data-public-key="${company.widgetPublicKey}" async></script>`
   }, [API_URL, company])
 
   const update = (key, value) => {
