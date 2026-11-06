@@ -6,7 +6,7 @@ import Subscription from "../models/subscription.js";
 import Transaction from "../models/transaction.js";
 import { PAYSTACK_API_BASE, getPlanConfig } from "./config.js";
 import { activatePayment } from "./activatePayment.js";
-import { maskKenyanPhone, normalizeKenyanPhone } from "./normalize.js";
+import { getPaystackPhoneVariants, maskKenyanPhone, normalizeKenyanPhone } from "./normalize.js";
 
 const router = express.Router();
 const MAX_CHARGE_REQUESTS_PER_MINUTE = 5;
@@ -267,6 +267,7 @@ router.post("/mpesa/charge", verifyToken, applyRateLimit, checkUserPendingLimit,
     return res.status(400).json({ message: "Enter a valid Kenyan phone number in the format 254XXXXXXXXX." });
   }
 
+  const paystackPhoneVariants = getPaystackPhoneVariants(rawPhone);
   const reference = `sub_${companyId}_${Date.now()}_${crypto.randomBytes(8).toString("hex")}`;
 
   try {
@@ -286,33 +287,38 @@ router.post("/mpesa/charge", verifyToken, applyRateLimit, checkUserPendingLimit,
 
     let response;
     let body;
-    try {
-      response = await fetch(`${PAYSTACK_API_BASE}/charge`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: req.user.email,
-          amount: planConfig.amount * 100,
-          currency: planConfig.currency,
-          reference,
-          mobile_money: { phone: normalizedPhone, provider: "mpesa" },
-          metadata: { organizationId: String(companyId), planKey: rawPlanKey, interval: planConfig.interval },
-        }),
-      });
-      body = await response.json();
-    } catch (error) {
-      await Transaction.updateOne(
-        { _id: payment._id, status: "pending" },
-        { status: "failed", failureReason: "payment_request_failed", gatewayResponse: "payment_request_failed" }
-      );
-      console.error("Paystack charge request failed", { reference, message: error.message });
-      return res.status(502).json({ message: "Could not reach the payment provider. Please try again." });
+    let lastPhoneCandidate = null;
+
+    for (const phoneCandidate of paystackPhoneVariants) {
+      lastPhoneCandidate = phoneCandidate;
+      try {
+        response = await fetch(`${PAYSTACK_API_BASE}/charge`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: req.user.email,
+            amount: planConfig.amount * 100,
+            currency: planConfig.currency,
+            reference,
+            mobile_money: { phone: phoneCandidate, provider: "mpesa" },
+            metadata: { organizationId: String(companyId), planKey: rawPlanKey, interval: planConfig.interval },
+          }),
+        });
+        body = await response.json();
+        if (response.ok && body?.status) break;
+        if (body?.data?.status !== "error" && body?.data?.message && !body?.data?.message.toLowerCase().includes("phone")) {
+          break;
+        }
+      } catch (error) {
+        console.error("Paystack charge request failed", { reference, phone: phoneCandidate, message: error.message });
+        continue;
+      }
     }
 
-    if (!response.ok || !body?.status) {
+    if (!response || !body || !response.ok || !body?.status) {
       const gatewayResponse = body?.data?.gateway_response;
       const providerMessage = body?.data?.message || body?.data?.display_text;
       const userMessage = providerMessage || gatewayResponse || body?.message || "The payment request was declined.";
@@ -328,7 +334,8 @@ router.post("/mpesa/charge", verifyToken, applyRateLimit, checkUserPendingLimit,
 
       console.error("Paystack rejected M-Pesa charge", {
         reference,
-        httpStatus: response.status,
+        httpStatus: response?.status || 0,
+        phone: lastPhoneCandidate,
         status: body?.status,
         message: body?.message,
       });
