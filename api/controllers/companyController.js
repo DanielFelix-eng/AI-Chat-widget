@@ -52,39 +52,44 @@ export const saveOnboarding = async (req, res) => {
     }
 
     try {
-        const company = await Company.findOneAndUpdate(
-            { ownerUserId: req.user._id },
-            {
-                $set: {
-                    name,
-                    website: website?.toString() || null,
-                    onboardingCompleted: true,
-                    allowedDomains: website ? [website.hostname.replace(/^www\./i, '')] : [],
-                    plan: DEFAULT_PLAN,
-                    planStatus: 'active',
-                    currentPeriodStart: getCurrentPeriodStart(new Date()),
-                    'usage.widgetsCount': 1,
-                    'widgetConfig.primaryColor': primaryColor.toUpperCase(),
-                    'widgetConfig.botName': botName,
-                    'widgetConfig.greeting': greeting,
-                    'widgetConfig.limitMessage': 'Our assistant is unavailable right now. Please contact us to upgrade.',
-                    'widgetConfig.branding': 'Powered by Nudge',
-                },
-                $setOnInsert: {
-                    ownerUserId: req.user._id,
-                    widgetPublicKey: crypto.randomBytes(24).toString('hex'),
-                    plan: DEFAULT_PLAN,
-                    planStatus: 'active',
-                    currentPeriodStart: getCurrentPeriodStart(new Date()),
-                    usage: {
-                        repliesThisPeriod: 0,
-                        documentsCount: 0,
-                        widgetsCount: 1,
-                    },
-                },
+        const existingCompany = await Company.findOne({ ownerUserId: req.user._id }).lean()
+
+        const companyPayload = {
+            name,
+            website: website?.toString() || null,
+            onboardingCompleted: true,
+            allowedDomains: website ? [website.hostname.replace(/^www\./i, '')] : [],
+            plan: DEFAULT_PLAN,
+            planStatus: 'active',
+            currentPeriodStart: getCurrentPeriodStart(new Date()),
+            usage: {
+                repliesThisPeriod: 0,
+                documentsCount: 0,
+                widgetsCount: 1,
             },
-            { returnDocument: 'after', upsert: true, runValidators: true, setDefaultsOnInsert: true }
-        )
+            widgetConfig: {
+                primaryColor: primaryColor.toUpperCase(),
+                botName,
+                greeting,
+                limitMessage: 'Our assistant is unavailable right now. Please contact us to upgrade.',
+                branding: 'Powered by Nudge',
+            },
+        }
+
+        let company
+        if (existingCompany) {
+            company = await Company.findOneAndUpdate(
+                { _id: existingCompany._id },
+                { $set: companyPayload },
+                { new: true, runValidators: true }
+            )
+        } else {
+            company = await Company.create({
+                ...companyPayload,
+                ownerUserId: req.user._id,
+                widgetPublicKey: crypto.randomBytes(24).toString('hex'),
+            })
+        }
 
         await User.updateOne({ _id: req.user._id }, { $set: { companyId: company._id } })
         return res.status(200).json({ success: true, company })
