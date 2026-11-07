@@ -31,6 +31,8 @@ export const requirePlanAccess = async (req, res, next) => {
       Subscription.findOne({ organizationId: req.user.companyId }).select("status trialEndsAt currentPeriodEnd")
     ]);
 
+    const hasActiveFreePlan = company?.plan === 'free' && company?.planStatus === 'active';
+
     if (company && company.planStatus && company.planStatus !== 'active') {
       return res.status(402).json({
         code: "PLAN_REQUIRED",
@@ -38,13 +40,11 @@ export const requirePlanAccess = async (req, res, next) => {
       });
     }
 
-    if (!subscriptionHasAccess(subscription)) {
-      if (!company || company.planStatus === 'active') {
-        return res.status(402).json({
-          code: "PLAN_REQUIRED",
-          message: "Choose a plan to continue.",
-        });
-      }
+    if (!subscriptionHasAccess(subscription) && !hasActiveFreePlan) {
+      return res.status(402).json({
+        code: "PLAN_REQUIRED",
+        message: "Choose a plan to continue.",
+      });
     }
 
     req.subscription = subscription;
