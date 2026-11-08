@@ -193,10 +193,10 @@ function AssistantSettings() {
 
           <section className="assistant-settings-card install-card">
             <div className="assistant-card-heading"><span className="assistant-card-icon"><ExternalLink size={17} /></span><span><strong>Install on your website</strong><small>Add this script to your website once.</small></span></div>
-            <label className="assistant-field"><span>API server URL</span><input type="url" value={apiUrl} onChange={(event) => setApiUrl(event.target.value)} required /><small>The publicly reachable URL of your AI Chat API server.</small></label>
+            <label className="assistant-field"><span>API server URL</span><input type="url" value={apiUrl} onChange={(event) => setApiUrl(event.target.value)} required /><small>Use your public API origin for production, such as <code>https://api.yourdomain.com</code>. Do not use localhost or a dev port on a live website.</small></label>
             <div className="install-code-wrap"><pre><code>{installCode || 'Save your company workspace to generate your install code.'}</code></pre><button type="button" onClick={copyInstallCode} disabled={!installCode} aria-label="Copy website install code">{copied ? <Check size={15} /> : <Copy size={15} />}{copied ? 'Copied' : 'Copy'}</button></div>
-            <ol className="install-instructions"><li>Save your assistant settings and copy the script above.</li><li>Paste it before <code>&lt;/body&gt;</code> on your website.</li><li>Publish your website. The chat button will appear in the chosen corner.</li></ol>
-            <p className="install-note"><ShieldCheck size={14} /> Your public key identifies the widget; it does not expose your account password or AI provider key. Protect access by allowing only your own domains above.</p>
+            <ol className="install-instructions"><li>Save your assistant settings and copy the script above.</li><li>Paste it before <code>&lt;/body&gt;</code> on your website. Use the public production URL, not localhost or a local dev port.</li><li>Publish your website. The chat button will appear in the chosen corner.</li></ol>
+            <p className="install-note"><ShieldCheck size={14} /> Your public key identifies the widget; it does not expose your account password or AI provider key. Protect access by allowing only your own domains above and never use local development URLs in production.</p>
           </section>
         </aside>
       </form>
