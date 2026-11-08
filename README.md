@@ -1,5 +1,6 @@
 ﻿# AI-Chat-widget
 # AI Chat Widget
+link : www.jardini.xyz
 
 An embeddable, RAG-powered AI chat widget for customer support. Upload your documents, copy one script tag, and your website gets an assistant that answers questions from **your** knowledge base, not generic LLM guesses.
 
