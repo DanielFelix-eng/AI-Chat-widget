@@ -140,11 +140,18 @@ export const updateWidgetConfig = async (req, res) => {
     }
 
     try {
+        const existingCompany = await Company.findOne({ ownerUserId: req.user._id })
+
+        if (!existingCompany) {
+            return res.status(404).json({ message: 'Set up your company workspace before configuring the widget.' })
+        }
+
         const company = await Company.findOneAndUpdate(
             { ownerUserId: req.user._id },
             {
                 $set: {
                     allowedDomains: [...new Set(normalizedDomains)],
+                    widgetPublicKey: existingCompany.widgetPublicKey || crypto.randomBytes(24).toString('hex'),
                     'widgetConfig.botName': botName,
                     'widgetConfig.greeting': greeting,
                     'widgetConfig.primaryColor': primaryColor.toUpperCase(),
@@ -155,10 +162,6 @@ export const updateWidgetConfig = async (req, res) => {
             },
             { new: true, runValidators: true }
         )
-
-        if (!company) {
-            return res.status(404).json({ message: 'Set up your company workspace before configuring the widget.' })
-        }
 
         return res.status(200).json({ success: true, company })
     } catch (error) {

@@ -69,16 +69,22 @@ function AssistantSettings() {
 
   const installCode = useMemo(() => {
     if (!company?.widgetPublicKey) return ''
+
+    const apiUrlValue = (apiUrl || defaultApiUrl || API_URL || '').trim()
+    if (!apiUrlValue) return ''
+
     let parsedApiUrl
     try {
-      parsedApiUrl = new URL(API_URL.trim())
+      parsedApiUrl = new URL(apiUrlValue)
     } catch {
       return ''
     }
+
     if (!['http:', 'https:'].includes(parsedApiUrl.protocol)) return ''
+
     const base = parsedApiUrl.origin
     return `<script src="${WIDGET_SCRIPT_URL}/widget.js" data-api-url="${base}" data-public-key="${company.widgetPublicKey}" async></script>`
-  }, [API_URL, company])
+  }, [apiUrl, defaultApiUrl, company])
 
   const update = (key, value) => {
     setSettings((current) => ({ ...current, [key]: value }))
