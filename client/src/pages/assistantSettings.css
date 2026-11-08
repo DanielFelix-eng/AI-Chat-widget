@@ -550,20 +550,26 @@
   background: #182b35;
 }
 
-.install-code-wrap pre {
-  max-height: 96px;
-  overflow: auto;
-  margin: 0;
+.install-code-wrap textarea {
+  width: 100%;
+  min-height: 90px;
+  max-height: 120px;
   padding: 13px 63px 13px 12px;
+  border: 0;
+  border-radius: 9px;
   color: #d4e8ed;
+  background: transparent;
+  resize: vertical;
+  font-family: "Cascadia Code", Consolas, monospace;
   font-size: 8px;
   line-height: 1.7;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
-.install-code-wrap code {
-  font-family: "Cascadia Code", Consolas, monospace;
+.install-code-wrap textarea:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 1px rgb(101 208 244 / 30%);
 }
 
 .install-code-wrap > button {
