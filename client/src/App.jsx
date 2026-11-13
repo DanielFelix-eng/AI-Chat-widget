@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { initializeAuth } from './store/authSlice.js'
 import Dashboard from './pages/dashboard.jsx'
 import ForgotPassword from './pages/forgotPassword.jsx'
@@ -102,7 +102,7 @@ function BrandMark() {
           <path d="M12 12h8M12 16h5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
         </svg>
       </span>
-      <span>AI Chat<span className="brand-period">.</span></span>
+      <span>NUDGE</span>
     </div>
   )
 }
@@ -149,7 +149,7 @@ function AuthLayout({ children }) {
       <section className="form-panel">
         <div className="form-top-mobile"><BrandMark /></div>
         <div className="form-wrap">{children}</div>
-        <div className="form-footer"><span>© 2026 AI Chat</span><span>AI support, made personal</span></div>
+        <div className="form-footer"><span>© 2026 NUDGE</span><span>AI support, made personal</span></div>
       </section>
     </main>
   )
@@ -161,10 +161,25 @@ function rememberEmail(email) {
 
 function App() {
   const dispatch = useDispatch()
+  const location = useLocation()
 
   useEffect(() => {
     dispatch(initializeAuth())
   }, [dispatch])
+
+  useEffect(() => {
+    const titles = {
+      '/signup': 'Create your account | NUDGE',
+      '/login': 'Sign in | NUDGE',
+      '/verify-email': 'Verify your email | NUDGE',
+      '/forgot-password': 'Reset your password | NUDGE',
+      '/reset-password': 'Choose a new password | NUDGE',
+      '/pricing': 'Choose your plan | NUDGE',
+      '/onboarding': 'Set up your workspace | NUDGE',
+      '/dashboard': 'Workspace | NUDGE',
+    }
+    document.title = titles[location.pathname] || 'NUDGE'
+  }, [location.pathname])
 
   return (
     <Routes>

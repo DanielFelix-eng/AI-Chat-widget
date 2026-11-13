@@ -8,6 +8,7 @@ import { enqueueIngestion } from "../service/queu.js";
 import { extractText } from "../service/extract.js";
 import { ensureDocumentLimit, incrementDocumentCount } from "../utils/workspaceLimits.js";
 import { getPlanConfig } from "../plans.js";
+import mongoose from "mongoose";
 
 const SOURCE_TYPE_BY_EXT = {
   ".pdf": "pdf",
@@ -140,6 +141,49 @@ export const listDocuments = async (req, res, next) => {
       .lean();
 
     return res.status(200).json({ documents });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const retryDocument = async (req, res, next) => {
+  try {
+    const { companyId } = req.user;
+    if (!companyId) {
+      return res.status(409).json({ message: "Set up your company workspace before retrying documents." });
+    }
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "Invalid document ID." });
+    }
+
+    const document = await Document.findOneAndUpdate(
+      { _id: req.params.id, companyId, status: "failed", storagePath: { $ne: null } },
+      { $set: { status: "pending", errorMessage: null } },
+      { new: true },
+    ).select("_id");
+
+    if (!document) {
+      const existing = await Document.findOne({ _id: req.params.id, companyId }).select("status storagePath").lean();
+      if (!existing) return res.status(404).json({ message: "Document not found." });
+      if (existing.status !== "failed") {
+        return res.status(409).json({ message: "Only failed documents can be retried." });
+      }
+      return res.status(409).json({ message: "The original file is no longer available. Upload it again to retry." });
+    }
+
+    enqueueIngestion(document._id).catch(async (error) => {
+      console.error(`[ingestion] failed to retry ${document._id}:`, error);
+      try {
+        await Document.findOneAndUpdate(
+          { _id: document._id, companyId, status: "pending" },
+          { $set: { status: "failed", errorMessage: "Could not restart document processing. Please try again." } },
+        );
+      } catch (recoveryError) {
+        console.error(`[ingestion] could not restore retry state for ${document._id}:`, recoveryError);
+      }
+    });
+
+    return res.status(202).json({ message: "Document processing restarted." });
   } catch (error) {
     next(error);
   }

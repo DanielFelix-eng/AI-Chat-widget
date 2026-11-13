@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useSelector } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import { apiUrl } from '../lib/api.js'
 import {
   AlertCircle,
@@ -8,7 +8,6 @@ import {
   Building2,
   Check,
   ChevronDown,
-  CircleHelp,
   Clock3,
   CreditCard,
   FileText,
@@ -20,7 +19,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
-  Settings2,
   Sparkles,
   X,
 } from 'lucide-react'
@@ -28,13 +26,16 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pi
 import KnowledgeBase from './knowledgebase.jsx'
 import AssistantSettings from './assistantSettings.jsx'
 import Chat from './chat.jsx'
+import Conversations from './conversations.jsx'
 import BillingPage from './billing.jsx'
+import { clearCredentials } from '../store/authSlice.js'
 import './dashboard.css'
 
 const navigation = [
   { label: 'Workspace', icon: Building2 },
   { label: 'Overview', icon: LayoutDashboard },
-  { label: 'Chat', icon: MessagesSquare },
+  { label: 'Conversations', icon: MessagesSquare },
+  { label: 'Test chat', icon: MessageCircle },
   { label: 'Knowledge base', icon: FileText },
   { label: 'AI assistant', icon: Bot },
   { label: 'Plans & billing', icon: CreditCard },
@@ -203,11 +204,16 @@ function getTimeGreeting(hour) {
 }
 
 function Dashboard({ navigate }) {
+  const dispatch = useDispatch()
   const user = useSelector((state) => state.auth.user)
   const [collapsed, setCollapsed] = useState(true)
   const [sidebarHovered, setSidebarHovered] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [activePage, setActivePage] = useState('Overview')
+  const [selectedConversationId, setSelectedConversationId] = useState('')
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
+  const [profileError, setProfileError] = useState('')
   const [company, setCompany] = useState(null)
   const [companyLoaded, setCompanyLoaded] = useState(false)
   const [companyError, setCompanyError] = useState('')
@@ -343,6 +349,33 @@ function Dashboard({ navigate }) {
   const selectPage = (label) => {
     setActivePage(label)
     setMobileOpen(false)
+    setProfileMenuOpen(false)
+  }
+
+  const signOut = async () => {
+    setProfileError('')
+    setSigningOut(true)
+    try {
+      const response = await fetch(apiUrl('/api/auth/logout'), {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (!response.ok) {
+        let result
+        try {
+          result = await response.json()
+        } catch {
+          throw new Error('Could not sign out. Please try again.')
+        }
+        throw new Error(result.message || 'Could not sign out. Please try again.')
+      }
+      dispatch(clearCredentials())
+      navigate('/login', { replace: true })
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : 'Could not sign out. Please try again.')
+    } finally {
+      setSigningOut(false)
+    }
   }
 
   const currentMetrics = metrics?.period === period ? metrics : null
@@ -369,7 +402,7 @@ function Dashboard({ navigate }) {
       >
         <div className="dashboard-brand">
           <span className="dashboard-brand-icon"><MessagesSquare size={19} strokeWidth={2.2} /></span>
-          <span className="dashboard-brand-name">AI Chat<span>.</span></span>
+          <span className="dashboard-brand-name">NUDGE</span>
           <button className="sidebar-mobile-close" type="button" aria-label="Close navigation" onClick={() => setMobileOpen(false)}>
             <X size={18} />
           </button>
@@ -406,16 +439,9 @@ function Dashboard({ navigate }) {
             <p className="sidebar-link-label">Explore a plan that fits your team.</p>
             <button type="button" className="plan-button" onClick={() => selectPage('Plans & billing')}>Explore plans <ArrowUpRight size={14} /></button>
           </div>
-          <button className="sidebar-link" type="button" onClick={() => selectPage('Settings')} title={collapsed && !sidebarHovered ? 'Settings' : undefined}>
-            <Settings2 size={18} strokeWidth={1.8} /><span className="sidebar-link-label">Settings</span>
-          </button>
-          <button className="sidebar-link" type="button" onClick={() => selectPage('Help center')} title={collapsed && !sidebarHovered ? 'Help center' : undefined}>
-            <CircleHelp size={18} strokeWidth={1.8} /><span className="sidebar-link-label">Help center</span>
-          </button>
           <div className="sidebar-user">
-            <span className="user-avatar">F</span>
-            <span className="sidebar-user-copy"><strong>Felix Jardini</strong><small>Admin</small></span>
-            <ChevronDown className="workspace-chevron" size={15} />
+            <span className="user-avatar">{(user?.name || user?.email || 'U').trim().charAt(0).toUpperCase()}</span>
+            <span className="sidebar-user-copy"><strong>{user?.name || user?.email || 'Account'}</strong><small>{user?.email || 'Signed in'}</small></span>
           </div>
         </div>
       </aside>
@@ -435,7 +461,33 @@ function Dashboard({ navigate }) {
             <strong className="topbar-current">{activePage}</strong>
           </div>
           <div className="topbar-actions">
-            <button className="topbar-user" type="button" aria-label="Open workspace" title="Open workspace" onClick={() => selectPage('Workspace')}><span className="user-avatar">F</span><ChevronDown size={14} /></button>
+            <div className="profile-menu-wrap">
+              <button
+                className="topbar-user"
+                type="button"
+                aria-label="Open account menu"
+                aria-expanded={profileMenuOpen}
+                aria-controls="profile-menu"
+                onClick={() => { setProfileMenuOpen((open) => !open); setProfileError('') }}
+              >
+                <span className="user-avatar">{(user?.name || user?.email || 'U').trim().charAt(0).toUpperCase()}</span>
+                <ChevronDown size={14} />
+              </button>
+              {profileMenuOpen && (
+                <div className="profile-menu" id="profile-menu" aria-label="Account options">
+                  <div className="profile-menu-identity">
+                    <strong>{user?.name || 'Your account'}</strong>
+                    <small>{user?.email || ''}</small>
+                  </div>
+                  <button type="button" onClick={() => selectPage('Workspace')}>Workspace settings</button>
+                  <button type="button" onClick={() => selectPage('Plans & billing')}>Plans &amp; billing</button>
+                  {profileError && <p role="alert">{profileError}</p>}
+                  <button type="button" onClick={signOut} disabled={signingOut}>
+                    {signingOut ? 'Signing out…' : 'Sign out'}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -452,7 +504,9 @@ function Dashboard({ navigate }) {
             <WorkspacePage company={company} onSaved={(savedCompany) => { setCompany(savedCompany); setCompanyError('') }} />
           ) : activePage === 'Plans & billing' ? (
             <BillingPage currentPlan={company?.widgetConfig?.plan || 'free'} onPlanActivated={updateCompanyPlan} />
-          ) : activePage === 'Knowledge base' ? <KnowledgeBase /> : activePage === 'AI assistant' ? <AssistantSettings /> : activePage === 'Chat' ? <Chat /> : (
+          ) : activePage === 'Knowledge base' ? <KnowledgeBase /> : activePage === 'AI assistant' ? <AssistantSettings /> : activePage === 'Conversations' ? (
+            <Conversations selectedConversationId={selectedConversationId} onSelectConversation={setSelectedConversationId} />
+          ) : activePage === 'Test chat' ? <Chat /> : (
             <>
           <div className="dashboard-heading-row">
             <div>
@@ -460,7 +514,7 @@ function Dashboard({ navigate }) {
               <h1>{getTimeGreeting(currentHour)}{firstName ? `, ${firstName}` : ''} <span className="heading-wave">✳</span></h1>
               <p>Live workspace activity for the selected period.</p>
             </div>
-            <button className="dashboard-primary-button" type="button" onClick={() => selectPage('Chat')}><Plus size={17} /> Test your assistant</button>
+            <button className="dashboard-primary-button" type="button" onClick={() => selectPage('Test chat')}><Plus size={17} /> Test your assistant</button>
           </div>
 
           <section className="dashboard-stats" aria-label="Support overview">
@@ -568,8 +622,8 @@ function Dashboard({ navigate }) {
                 </div>
               ) : <p className="overview-empty-state">{metricsError || 'Assistant metrics will appear after the first real or test chat.'}</p>}
               <div className="assistant-panel-footer">
-                <span><span className="mini-status-dot" /> Answering customers</span>
-                <button type="button">View assistant <ArrowUpRight size={13} /></button>
+                <span className={company?.widgetConfig?.enabled === false ? 'assistant-paused' : ''}><span className="mini-status-dot" />{company?.widgetConfig?.enabled === false ? 'Widget paused' : 'Answering customers'}</span>
+                <button type="button" onClick={() => selectPage('AI assistant')}>View assistant <ArrowUpRight size={13} /></button>
               </div>
             </article>
           </section>
@@ -577,28 +631,28 @@ function Dashboard({ navigate }) {
           <section className="dashboard-panel conversations-panel">
             <div className="panel-heading">
               <div><h2>Recent conversations</h2><p>Latest questions sent to your assistant.</p></div>
-              <button className="view-all-button" type="button" onClick={() => selectPage('Chat')}>Try a test chat <ArrowUpRight size={14} /></button>
+              <button className="view-all-button" type="button" onClick={() => selectPage('Conversations')}>View inbox <ArrowUpRight size={14} /></button>
             </div>
             {recentError ? <p className="overview-empty-state" role="alert">{recentError}</p> : recentConversations.length ? (
               <div className="conversation-list">
                 {recentConversations.map((conversation) => (
-                  <div className="conversation-row" key={conversation._id}>
+                  <button className="conversation-row" type="button" key={conversation._id} onClick={() => { setSelectedConversationId(conversation._id); selectPage('Conversations') }}>
                     <span className="conversation-avatar blue"><MessagesSquare size={16} /></span>
                     <span className="conversation-person"><strong>Website visitor</strong><small>{conversation.latestMessage}</small></span>
                     <span className="conversation-status"><i /> Received</span>
                     <span className="conversation-time">{formatMessageTime(conversation.lastMessageAt)}</span>
-                  </div>
+                  </button>
                 ))}
               </div>
             ) : (
               <p className="overview-empty-state">There are no saved conversations yet. Send a test message or install the widget to start collecting real activity.</p>
             )}
-            <button className="mobile-view-all" type="button" onClick={() => selectPage('Chat')}>Try a test chat <ArrowUpRight size={14} /></button>
+            <button className="mobile-view-all" type="button" onClick={() => selectPage('Conversations')}>View inbox <ArrowUpRight size={14} /></button>
           </section>
 
           <footer className="dashboard-footer">
             <span>Made for meaningful conversations <MessageCircle size={13} /></span>
-            <span>AI Chat <i /> All systems operational</span>
+            <span>NUDGE <i /> All systems operational</span>
           </footer>
             </>
           )}

@@ -127,6 +127,12 @@
   background: #f5fcfe;
 }
 
+.knowledge-dropzone.is-dragging {
+  border-color: #39a9c8;
+  background: #eaf9fd;
+  box-shadow: 0 0 0 3px rgb(59 169 208 / 12%);
+}
+
 .knowledge-dropzone-select {
   min-width: 0;
   display: flex;
@@ -413,6 +419,38 @@
   font-size: 8px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.knowledge-retry {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 8px;
+  border: 1px solid #e6d5d3;
+  border-radius: 7px;
+  color: #a64d48;
+  background: #fff;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.knowledge-retry:hover:not(:disabled) {
+  border-color: #d7aaa6;
+  background: #fff8f7;
+}
+
+.knowledge-retry:disabled {
+  cursor: wait;
+  opacity: .6;
+}
+
+.knowledge-retry:focus-visible {
+  outline: 3px solid rgb(59 169 208 / 35%);
+  outline-offset: 2px;
 }
 
 .knowledge-eyebrow {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AlertCircle, ArrowLeft, Check, CheckCircle2, CreditCard, LoaderCircle, ShieldCheck, Smartphone, Sparkles } from 'lucide-react'
+import { AlertCircle, ArrowLeft, CalendarDays, Check, CheckCircle2, CreditCard, LoaderCircle, Receipt, ShieldCheck, Smartphone, Sparkles } from 'lucide-react'
 import { apiUrl } from '../lib/api.js'
 import './billing.css'
 
@@ -39,6 +39,38 @@ function BillingPage({ currentPlan = 'free', onPlanActivated }) {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [payment, setPayment] = useState(null)
+  const [usage, setUsage] = useState(null)
+  const [subscription, setSubscription] = useState(null)
+  const [transactions, setTransactions] = useState([])
+  const [billingInfoLoading, setBillingInfoLoading] = useState(true)
+  const [billingInfoError, setBillingInfoError] = useState('')
+
+  useEffect(() => {
+    let active = true
+    const requests = [
+      fetch(apiUrl('/api/company/usage'), { credentials: 'include' }).then(readBillingResponse),
+      fetch(apiUrl('/api/billing/subscription'), { credentials: 'include' }).then(readBillingResponse),
+      fetch(apiUrl('/api/billing/transactions'), { credentials: 'include' }).then(readBillingResponse),
+    ]
+
+    Promise.allSettled(requests).then(([usageResult, subscriptionResult, historyResult]) => {
+      if (!active) return
+      const failures = []
+      if (usageResult.status === 'fulfilled') setUsage(usageResult.value)
+      else failures.push(usageResult.reason)
+      if (subscriptionResult.status === 'fulfilled') setSubscription(subscriptionResult.value.subscription)
+      else failures.push(subscriptionResult.reason)
+      if (historyResult.status === 'fulfilled') setTransactions(historyResult.value.transactions)
+      else failures.push(historyResult.reason)
+      if (failures.length) {
+        setBillingInfoError(failures[0] instanceof Error ? failures[0].message : 'Some billing details could not be loaded.')
+      }
+    }).finally(() => {
+      if (active) setBillingInfoLoading(false)
+    })
+
+    return () => { active = false }
+  }, [])
 
   useEffect(() => {
     if (payment?.status !== 'pending') return undefined
@@ -122,6 +154,41 @@ function BillingPage({ currentPlan = 'free', onPlanActivated }) {
 
       {error && <p className="billing-message error" role="alert"><AlertCircle size={16} /> {error}</p>}
       {notice && !payment && <p className="billing-message success" role="status"><CheckCircle2 size={16} /> {notice}</p>}
+      {billingInfoError && <p className="billing-message error" role="alert"><AlertCircle size={16} /> {billingInfoError}</p>}
+
+      <section className="billing-account-overview" aria-label="Subscription and usage">
+        <article className="billing-account-card">
+          <div className="billing-account-card-heading"><CalendarDays size={17} /><h2>Subscription</h2></div>
+          {billingInfoLoading ? <p role="status">Loading subscription…</p> : (
+            <>
+              <strong className="billing-subscription-plan">{subscription?.planKey || usage?.plan || currentPlan} plan</strong>
+              <span className="billing-subscription-status">{subscription?.status || usage?.planStatus || 'Active'}</span>
+              <p>{subscription?.status === 'trialing' && subscription.trialEndsAt
+                ? `Your free trial ends ${new Date(subscription.trialEndsAt).toLocaleDateString()}.`
+                : subscription?.currentPeriodEnd
+                  ? `Current period ends ${new Date(subscription.currentPeriodEnd).toLocaleDateString()}.`
+                  : usage?.resetAt
+                    ? `Usage resets ${new Date(usage.resetAt).toLocaleDateString()}.`
+                    : 'Your current plan is active.'}</p>
+            </>
+          )}
+        </article>
+        <article className="billing-account-card billing-usage-card">
+          <div className="billing-account-card-heading"><Sparkles size={17} /><h2>Plan usage</h2></div>
+          {billingInfoLoading ? <p role="status">Loading usage…</p> : usage ? (
+            <div className="billing-usage-list">
+              {Object.entries({ 'AI replies': usage.usage.replies, Documents: usage.usage.documents, Widgets: usage.usage.widgets }).map(([label, item]) => (
+                <div className="billing-usage-item" key={label}>
+                  <div><span>{label}</span><strong>{item.used.toLocaleString()} / {item.limit.toLocaleString()}</strong></div>
+                  <span className="billing-usage-track" role="progressbar" aria-label={`${label} used`} aria-valuemin={0} aria-valuemax={item.limit} aria-valuenow={Math.min(item.limit, Math.max(0, item.used))}>
+                    <i style={{ width: `${item.limit ? Math.min(100, (item.used / item.limit) * 100) : 0}%` }} />
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : <p>Usage details are unavailable.</p>}
+        </article>
+      </section>
 
       <div className="billing-plan-grid">
         {plans.map((plan) => (
@@ -152,6 +219,24 @@ function BillingPage({ currentPlan = 'free', onPlanActivated }) {
           </article>
         ))}
       </div>
+
+      <section className="billing-history" aria-labelledby="billing-history-title">
+        <div className="billing-history-heading">
+          <span className="billing-checkout-icon"><Receipt size={17} /></span>
+          <div><h2 id="billing-history-title">Payment history</h2><p>Your latest payment activity.</p></div>
+        </div>
+        {billingInfoLoading ? <p className="billing-history-empty" role="status">Loading payment history…</p> : transactions.length ? (
+          <div className="billing-history-list">
+            {transactions.map((transaction) => (
+              <article className="billing-history-row" key={transaction._id}>
+                <span className="billing-history-plan"><strong>{transaction.planKey} plan</strong><small>{new Date(transaction.createdAt).toLocaleDateString()} · {transaction.channel.toUpperCase()}</small></span>
+                <strong className="billing-history-amount">{transaction.currency} {transaction.amount.toLocaleString()}</strong>
+                <span className={`billing-history-status ${transaction.status}`}>{transaction.status}</span>
+              </article>
+            ))}
+          </div>
+        ) : <p className="billing-history-empty">No payments yet. Completed payments will appear here.</p>}
+      </section>
 
       {selectedPlan && (
         <section className="billing-checkout" aria-labelledby="billing-checkout-title">

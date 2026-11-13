@@ -36,6 +36,8 @@ function KnowledgeBase() {
   const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [retryingDocumentId, setRetryingDocumentId] = useState('')
+  const [draggingFile, setDraggingFile] = useState(false)
 
   const loadDocuments = useCallback(async (signal) => {
       const response = await fetch(apiUrl('/api/documents'), {
@@ -80,17 +82,35 @@ function KnowledgeBase() {
     return () => window.clearInterval(interval)
   }, [documents, loadDocuments])
 
-  const handleFileChange = (event) => {
+  const selectFile = (file) => {
     setError('')
     setNotice('')
-    const file = event.target.files?.[0] || null
+    if (!file) return
+    if (!/\.(pdf|txt|md)$/i.test(file.name)) {
+      setError('That file type is not supported. Choose a PDF, TXT, or MD file.')
+      setSelectedFile(null)
+      if (inputRef.current) inputRef.current.value = ''
+      return
+    }
     if (file && file.size > MAX_FILE_SIZE) {
       setError('File is too large. The maximum file size is 10 MB.')
-      event.target.value = ''
       setSelectedFile(null)
+      if (inputRef.current) inputRef.current.value = ''
       return
     }
     setSelectedFile(file)
+  }
+
+  const handleFileChange = (event) => {
+    const file = event.target.files?.[0] || null
+    event.target.value = ''
+    selectFile(file)
+  }
+
+  const handleDrop = (event) => {
+    event.preventDefault()
+    setDraggingFile(false)
+    if (!uploading) selectFile(event.dataTransfer.files?.[0] || null)
   }
 
   const handleUpload = async (event) => {
@@ -128,6 +148,25 @@ function KnowledgeBase() {
     }
   }
 
+  const retryDocument = async (document) => {
+    setError('')
+    setNotice('')
+    setRetryingDocumentId(document._id)
+    try {
+      const response = await fetch(apiUrl(`/api/documents/${encodeURIComponent(document._id)}/retry`), {
+        method: 'PATCH',
+        credentials: 'include',
+      })
+      await readResponse(response)
+      setNotice(`Retrying processing for ${document.originalName}.`)
+      await loadDocuments()
+    } catch (requestError) {
+      setError(requestError.message || `Could not retry ${document.originalName}.`)
+    } finally {
+      setRetryingDocumentId('')
+    }
+  }
+
   return (
     <section className="knowledge-base">
       <header className="knowledge-header">
@@ -154,10 +193,16 @@ function KnowledgeBase() {
             aria-label="Choose a document to upload"
             disabled={uploading}
           />
-          <div className={`knowledge-dropzone${selectedFile ? ' has-file' : ''}`}>
+          <div
+            className={`knowledge-dropzone${selectedFile ? ' has-file' : ''}${draggingFile ? ' is-dragging' : ''}`}
+            onDragOver={(event) => event.preventDefault()}
+            onDragEnter={(event) => { event.preventDefault(); if (!uploading) setDraggingFile(true) }}
+            onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setDraggingFile(false) }}
+            onDrop={handleDrop}
+          >
             <button className="knowledge-dropzone-select" type="button" onClick={() => inputRef.current?.click()} disabled={uploading}>
               <span className="knowledge-dropzone-icon"><Upload size={18} /></span>
-              <span><strong>{selectedFile ? selectedFile.name : 'Click to choose a file'}</strong><small>{selectedFile ? formatFileSize(selectedFile.size) : 'PDF, TXT, or MD · up to 10 MB'}</small></span>
+              <span><strong>{selectedFile ? selectedFile.name : draggingFile ? 'Drop your file to upload' : 'Choose a file or drag it here'}</strong><small>{selectedFile ? formatFileSize(selectedFile.size) : 'PDF, TXT, or MD · up to 10 MB'}</small></span>
             </button>
             {selectedFile && <button className="knowledge-clear-file" type="button" aria-label="Remove selected file" onClick={() => { setSelectedFile(null); if (inputRef.current) inputRef.current.value = '' }}><X size={16} /></button>}
           </div>
@@ -196,7 +241,17 @@ function KnowledgeBase() {
                   {document.status === 'ready' ? 'Ready' : document.status === 'failed' ? 'Failed' : document.status === 'processing' ? 'Processing' : 'Queued'}
                 </span>
                 {document.status === 'ready' && <span className="knowledge-chunk-count">{document.chunkCount} chunks</span>}
-                {document.status === 'failed' && document.errorMessage && <span className="knowledge-error-detail" title={document.errorMessage}>{document.errorMessage}</span>}
+                {document.status === 'failed' && document.errorMessage && <span className="knowledge-error-detail" title={document.errorMessage} aria-label={`Processing error: ${document.errorMessage}`}>{document.errorMessage}</span>}
+                {document.status === 'failed' && (
+                  <button
+                    className="knowledge-retry"
+                    type="button"
+                    onClick={() => retryDocument(document)}
+                    disabled={Boolean(retryingDocumentId)}
+                  >
+                    {retryingDocumentId === document._id ? <><LoaderCircle className="knowledge-spin" size={13} /> Retrying…</> : <><RefreshCw size={13} /> Retry</>}
+                  </button>
+                )}
               </article>
             ))}
           </div>

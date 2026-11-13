@@ -4,6 +4,7 @@ import { streamAnswer } from '../services/chat/llm.js';
 import ChatMessage from '../models/chatMessage.js';
 import ChatSession from '../models/chatSession.js';
 import Document from '../models/documents.js';
+import mongoose from 'mongoose';
 
 const MAX_MESSAGE_CHARS = 2000;
 const MAX_HISTORY_MESSAGES = 10;
@@ -152,6 +153,35 @@ export const getConversationActivity = async (req, res) => {
     }
 }
 
+export const getConversation = async (req, res) => {
+    try {
+        const { sessionId } = req.params
+        if (!mongoose.isValidObjectId(sessionId)) {
+            return res.status(400).json({ message: 'Invalid conversation ID.' })
+        }
+
+        const session = await ChatSession.findOne({
+            _id: sessionId,
+            companyId: req.user.companyId,
+        }).select('visitorEmail status createdAt lastMessageAt').lean()
+
+        if (!session) {
+            return res.status(404).json({ message: 'Conversation not found.' })
+        }
+
+        const messages = await ChatMessage.find({
+            sessionId: session._id,
+            companyId: req.user.companyId,
+            role: { $in: ['user', 'assistant'] },
+        }).select('role content createdAt').sort({ createdAt: 1 }).lean()
+
+        return res.status(200).json({ conversation: { ...session, messages } })
+    } catch (error) {
+        console.error('Failed to fetch conversation:', error)
+        return res.status(500).json({ message: 'Could not fetch conversation.' })
+    }
+}
+
 /** Return real workspace and assistant metrics for the selected period. */
 export const getAssistantMetrics = async (req, res) => {
     try {
@@ -220,37 +250,62 @@ export const getAssistantMetrics = async (req, res) => {
     }
 }
 
+async function loadConversationSummaries(companyId, limit) {
+    const summaries = await ChatMessage.aggregate([
+        {
+            $match: {
+                companyId,
+                role: 'user',
+            },
+        },
+        { $sort: { createdAt: -1 } },
+        {
+            $group: {
+                _id: '$sessionId',
+                latestMessage: { $first: '$content' },
+                lastMessageAt: { $first: '$createdAt' },
+            },
+        },
+        { $sort: { lastMessageAt: -1 } },
+        { $limit: limit },
+        {
+            $project: {
+                _id: 1,
+                latestMessage: { $substrCP: ['$latestMessage', 0, 140] },
+                lastMessageAt: 1,
+            },
+        },
+    ])
+    if (!summaries.length) return summaries
+
+    const sessions = await ChatSession.find({
+        _id: { $in: summaries.map(({ _id }) => _id) },
+        companyId,
+    }).select('visitorEmail status').lean()
+    const sessionById = new Map(sessions.map((session) => [session._id.toString(), session]))
+    return summaries.map((summary) => ({
+        ...summary,
+        visitorEmail: sessionById.get(summary._id.toString())?.visitorEmail || null,
+        status: sessionById.get(summary._id.toString())?.status || 'open',
+    }))
+}
+
 export const getRecentConversations = async (req, res) => {
     try {
-        const conversations = await ChatMessage.aggregate([
-            {
-                $match: {
-                    companyId: req.user.companyId,
-                    role: 'user',
-                },
-            },
-            { $sort: { createdAt: -1 } },
-            {
-                $group: {
-                    _id: '$sessionId',
-                    latestMessage: { $first: '$content' },
-                    lastMessageAt: { $first: '$createdAt' },
-                },
-            },
-            { $sort: { lastMessageAt: -1 } },
-            { $limit: 5 },
-            {
-                $project: {
-                    _id: 1,
-                    latestMessage: { $substrCP: ['$latestMessage', 0, 140] },
-                    lastMessageAt: 1,
-                },
-            },
-        ])
-
+        const conversations = await loadConversationSummaries(req.user.companyId, 5)
         return res.status(200).json({ conversations })
     } catch (error) {
         console.error('Failed to fetch recent conversations:', error)
         return res.status(500).json({ message: 'Could not fetch recent conversations.' })
+    }
+}
+
+export const getConversations = async (req, res) => {
+    try {
+        const conversations = await loadConversationSummaries(req.user.companyId, 100)
+        return res.status(200).json({ conversations })
+    } catch (error) {
+        console.error('Failed to fetch conversations:', error)
+        return res.status(500).json({ message: 'Could not fetch conversations.' })
     }
 }

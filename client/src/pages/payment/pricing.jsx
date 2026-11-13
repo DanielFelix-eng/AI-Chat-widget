@@ -132,7 +132,7 @@ function Pricing({ navigate }) {
   return (
     <main className="pricing-page">
       <header className="pricing-topbar">
-        <a className="pricing-brand" href="/"><span>n</span> AI Chat<span className="pricing-brand-dot">.</span></a>
+        <a className="pricing-brand" href="/"><span>N</span> NUDGE</a>
         <span className="pricing-secure-label"><ShieldCheck size={15} /> Secure plan selection</span>
       </header>
 

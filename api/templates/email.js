@@ -1,21 +1,30 @@
 // templates/emailtemplates.js
 
+const COMPANY = {
+  name: 'Jardini',
+  website: 'https://www.jardini.xyz',
+  supportEmail: 'support@jardini.xyz',
+};
+
 export const EmailVerification = (verificationToken) => `
 <!DOCTYPE html>
 <html>
-  <head><meta charset="UTF-8" /><title>Verify your Email</title></head>
+  <head><meta charset="UTF-8" /><title>Verify your email</title></head>
   <body style="font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px;">
-    <div style="max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 8px;">
-      <h2 style="color: #333;">Verify your Email Address</h2>
-      <p>Use this code to verify your account:</p>
-      <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #4F46E5; margin: 20px 0;">
+    <div style="max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);">
+      <h2 style="color: #0f172a; margin: 0 0 20px;">Verify your email address</h2>
+      <p style="color: #475569; font-size: 15px; line-height: 1.7; margin: 0 0 18px;">Use this code to verify your ${COMPANY.name} account:</p>
+      <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #1d4ed8; margin: 20px 0; background: #eff6ff; border-radius: 10px; padding: 20px; text-align: center;">
         ${verificationToken}
       </div>
-      <p>Or click the link below:</p>
-      <a href="http://localhost:3000/verify?token=${verificationToken}" style="color: #4F46E5;">
-        Click here to verify
+      <p style="color: #475569; margin: 0 0 12px;">Or click the link below:</p>
+      <a href="http://localhost:3000/verify?token=${verificationToken}" style="color: #1d4ed8; font-weight: 600;">
+        Verify my account
       </a>
-      <p style="color: #999; margin-top: 20px;">This code expires in 1 hour.</p>
+      <p style="color: #64748b; margin-top: 20px;">This code expires in 1 hour.</p>
+      <p style="color: #64748b; margin-top: 28px; font-size: 12px; line-height: 1.7;">
+        Welcome to ${COMPANY.name}. If you need help, reply to this email or visit <a href="${COMPANY.website}" style="color:#1d4ed8;">${COMPANY.website}</a>.
+      </p>
     </div>
   </body>
 </html>
@@ -27,7 +36,7 @@ export const WelcomeEmail = (name, email, dashboardUrl) => `
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Welcome Email</title>
+  <title>Welcome to ${COMPANY.name}</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
 </head>
 <body style="margin:0;padding:0;background-color:#0b0f1a;font-family:'DM Sans',sans-serif;">
@@ -36,38 +45,33 @@ export const WelcomeEmail = (name, email, dashboardUrl) => `
     <tr>
       <td align="center">
 
-        <!-- Card -->
         <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;border-radius:20px;overflow:hidden;background-color:#111827;border:1px solid #1f2d45;">
 
-          <!-- Header Banner -->
           <tr>
             <td style="background:linear-gradient(135deg,#0f2942 0%,#0a3d62 50%,#1a5276 100%);padding:56px 48px 48px;text-align:center;">
               <div style="display:inline-block;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:14px;padding:10px 22px;margin-bottom:32px;">
-                <span style="font-family:'DM Sans',sans-serif;font-weight:500;font-size:13px;letter-spacing:3px;color:#93c5e8;text-transform:uppercase;">YourBrand</span>
+                <span style="font-family:'DM Sans',sans-serif;font-weight:500;font-size:13px;letter-spacing:3px;color:#93c5e8;text-transform:uppercase;">${COMPANY.name}</span>
               </div>
               <div style="font-size:42px;margin-bottom:16px;">✦</div>
               <h1 style="font-family:'Playfair Display',Georgia,serif;font-size:40px;font-weight:700;color:#ffffff;margin:0 0 12px;line-height:1.2;letter-spacing:-0.5px;">
                 Welcome aboard,<br/><span style="color:#7dd3f7;">${name}</span>
               </h1>
               <p style="font-family:'DM Sans',sans-serif;font-size:16px;color:#93c5e8;margin:0;font-weight:300;letter-spacing:0.3px;">
-                Your account is ready. Let's get started.
+                Your account is ready. Let’s get started.
               </p>
             </td>
           </tr>
 
-          <!-- Divider -->
           <tr>
             <td style="height:1px;background:linear-gradient(90deg,transparent,#1f3a5f,transparent);"></td>
           </tr>
 
-          <!-- Body -->
           <tr>
             <td style="padding:48px 48px 36px;">
               <p style="font-size:15px;color:#94a3b8;line-height:1.8;margin:0 0 28px;font-weight:300;">
-                We're genuinely thrilled to have you with us. Your account has been created and you're all set to explore everything we've built for you.
+                We’re excited to have you on board. Your ${COMPANY.name} workspace is now live, and you can start building smarter support experiences right away.
               </p>
 
-              <!-- Feature tiles -->
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:36px;">
                 <tr>
                   <td style="padding:0 8px 0 0;" width="33%">
@@ -76,7 +80,7 @@ export const WelcomeEmail = (name, email, dashboardUrl) => `
                         <td style="background:#0f1e30;border:1px solid #1e3a5a;border-radius:12px;padding:20px 16px;text-align:center;">
                           <div style="font-size:24px;margin-bottom:10px;">🚀</div>
                           <p style="font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;color:#7dd3f7;margin:0 0 4px;text-transform:uppercase;letter-spacing:1px;">Quick Start</p>
-                          <p style="font-size:11px;color:#64748b;margin:0;line-height:1.5;">Get up and running in minutes</p>
+                          <p style="font-size:11px;color:#64748b;margin:0;line-height:1.5;">Launch in minutes</p>
                         </td>
                       </tr>
                     </table>
@@ -87,7 +91,7 @@ export const WelcomeEmail = (name, email, dashboardUrl) => `
                         <td style="background:#0f1e30;border:1px solid #1e3a5a;border-radius:12px;padding:20px 16px;text-align:center;">
                           <div style="font-size:24px;margin-bottom:10px;">📊</div>
                           <p style="font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;color:#7dd3f7;margin:0 0 4px;text-transform:uppercase;letter-spacing:1px;">Dashboard</p>
-                          <p style="font-size:11px;color:#64748b;margin:0;line-height:1.5;">Your command center awaits</p>
+                          <p style="font-size:11px;color:#64748b;margin:0;line-height:1.5;">Manage everything in one place</p>
                         </td>
                       </tr>
                     </table>
@@ -98,7 +102,7 @@ export const WelcomeEmail = (name, email, dashboardUrl) => `
                         <td style="background:#0f1e30;border:1px solid #1e3a5a;border-radius:12px;padding:20px 16px;text-align:center;">
                           <div style="font-size:24px;margin-bottom:10px;">💬</div>
                           <p style="font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;color:#7dd3f7;margin:0 0 4px;text-transform:uppercase;letter-spacing:1px;">Support</p>
-                          <p style="font-size:11px;color:#64748b;margin:0;line-height:1.5;">We're here whenever you need</p>
+                          <p style="font-size:11px;color:#64748b;margin:0;line-height:1.5;">We’re here when you need us</p>
                         </td>
                       </tr>
                     </table>
@@ -106,7 +110,6 @@ export const WelcomeEmail = (name, email, dashboardUrl) => `
                 </tr>
               </table>
 
-              <!-- CTA Button -->
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:36px;">
                 <tr>
                   <td align="center">
@@ -117,7 +120,6 @@ export const WelcomeEmail = (name, email, dashboardUrl) => `
                 </tr>
               </table>
 
-              <!-- Account info strip -->
               <table width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td style="background:#0c1928;border:1px solid #1a3049;border-radius:10px;padding:16px 20px;">
@@ -139,20 +141,18 @@ export const WelcomeEmail = (name, email, dashboardUrl) => `
             </td>
           </tr>
 
-          <!-- Divider -->
           <tr>
             <td style="height:1px;background:linear-gradient(90deg,transparent,#1f3a5f,transparent);"></td>
           </tr>
 
-          <!-- Footer -->
           <tr>
             <td style="padding:28px 48px 36px;text-align:center;">
               <p style="font-size:12px;color:#334155;margin:0 0 12px;line-height:1.7;">
-                You're receiving this because you signed up at <span style="color:#4a7fa5;">yourbrand.com</span>.<br/>
-                If this wasn't you, you can safely ignore this email.
+                You’re receiving this because you signed up for ${COMPANY.name}.<br/>
+                If this wasn’t you, you can safely ignore this email.
               </p>
               <p style="font-size:11px;color:#263345;margin:0;letter-spacing:0.5px;">
-                © 2025 YourBrand · All rights reserved
+                © 2025 ${COMPANY.name} · All rights reserved
               </p>
             </td>
           </tr>
@@ -173,7 +173,7 @@ export const ResetPassword = (name, email, resetUrl) => `
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Reset your Password</title>
+  <title>Reset your password</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f4f7fb;font-family:Arial,Helvetica,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f7fb;padding:40px 0;">
@@ -183,7 +183,7 @@ export const ResetPassword = (name, email, resetUrl) => `
           <tr>
             <td style="background:linear-gradient(135deg,#2f66d0 0%,#1c3b8a 100%);padding:38px 48px;text-align:center;color:#ffffff;">
               <h1 style="margin:0;font-size:28px;letter-spacing:-0.5px;">Reset your password</h1>
-              <p style="margin:16px 0 0;font-size:16px;color:rgba(255,255,255,0.85);">A password reset request was received for your account.</p>
+              <p style="margin:16px 0 0;font-size:16px;color:rgba(255,255,255,0.85);">A password reset request was received for your ${COMPANY.name} account.</p>
             </td>
           </tr>
           <tr>
@@ -199,13 +199,13 @@ export const ResetPassword = (name, email, resetUrl) => `
               </table>
               <p style="font-size:14px;line-height:1.8;margin:0 0 20px;color:#64748b;">If the button above does not work, copy and paste this link into your browser:</p>
               <p style="font-size:13px;line-height:1.6;word-break:break-all;color:#475569;margin:0 0 28px;"><a href="${resetUrl}" style="color:#2f66d0;text-decoration:none;">${resetUrl}</a></p>
-              <p style="font-size:14px;line-height:1.8;margin:0;color:#64748b;">If you didn't request a password reset, you can safely ignore this email and your password will remain unchanged.</p>
+              <p style="font-size:14px;line-height:1.8;margin:0;color:#64748b;">If you didn’t request a password reset, you can safely ignore this email and your password will remain unchanged.</p>
             </td>
           </tr>
           <tr>
             <td style="background:#f8fafc;padding:28px 48px 32px;color:#64748b;font-size:13px;line-height:1.7;">
-              <p style="margin:0;">Need help? Reply to this email and we'll be happy to assist.</p>
-              <p style="margin:12px 0 0;">Thanks,<br/>The YourBrand Team</p>
+              <p style="margin:0;">Need help? Reply to this email or visit <a href="${COMPANY.website}" style="color:#1d4ed8;text-decoration:none;">${COMPANY.website}</a>.</p>
+              <p style="margin:12px 0 0;">Thanks,<br/>The ${COMPANY.name} Team</p>
             </td>
           </tr>
         </table>
@@ -222,7 +222,7 @@ export const ResetPasswordSuccess = (name, email, loginUrl) => `
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Password Successfully Reset</title>
+  <title>Password successfully reset</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f4f7fb;font-family:Arial,Helvetica,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f7fb;padding:40px 0;">
@@ -231,7 +231,7 @@ export const ResetPasswordSuccess = (name, email, loginUrl) => `
         <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 12px 30px rgba(0,0,0,0.08);">
           <tr>
             <td style="background:linear-gradient(135deg,#10b981 0%,#047857 100%);padding:38px 48px;text-align:center;color:#ffffff;">
-              <h1 style="margin:0;font-size:28px;letter-spacing:-0.5px;">Password Reset Successful</h1>
+              <h1 style="margin:0;font-size:28px;letter-spacing:-0.5px;">Password reset successful</h1>
               <p style="margin:12px 0 0;font-size:16px;color:rgba(255,255,255,0.95);">Your password has been updated.</p>
             </td>
           </tr>
@@ -250,14 +250,14 @@ export const ResetPasswordSuccess = (name, email, loginUrl) => `
               </table>
 
               <p style="font-size:14px;line-height:1.8;margin:0 0 20px;color:#64748b;">If you did not change your password, please contact our support team immediately or reset your password again to secure your account.</p>
-              <p style="font-size:13px;line-height:1.6;word-break:break-all;color:#475569;margin:0 0 28px;">If the button doesn't work, copy and paste this link into your browser: <a href="${loginUrl}" style="color:#10b981;text-decoration:none;">${loginUrl}</a></p>
+              <p style="font-size:13px;line-height:1.6;word-break:break-all;color:#475569;margin:0 0 28px;">If the button doesn’t work, copy and paste this link into your browser: <a href="${loginUrl}" style="color:#10b981;text-decoration:none;">${loginUrl}</a></p>
 
-              <p style="font-size:14px;line-height:1.8;margin:0;color:#64748b;">Thanks,<br/>The YourBrand Team</p>
+              <p style="font-size:14px;line-height:1.8;margin:0;color:#64748b;">Thanks,<br/>The ${COMPANY.name} Team</p>
             </td>
           </tr>
           <tr>
             <td style="background:#f8fafc;padding:20px 48px 28px;color:#64748b;font-size:13px;line-height:1.7;">
-              <p style="margin:0;">If you have any concerns, reply to this email and we'll help secure your account.</p>
+              <p style="margin:0;">For any concerns, reply to this email and we’ll help secure your account.</p>
             </td>
           </tr>
         </table>

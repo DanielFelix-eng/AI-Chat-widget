@@ -354,6 +354,25 @@ router.post("/mpesa/charge", verifyToken, applyRateLimit, checkUserPendingLimit,
   }
 });
 
+router.get("/transactions", verifyToken, async (req, res) => {
+  if (!req.user.companyId) {
+    return res.status(403).json({ message: "User is not associated with a company." });
+  }
+
+  try {
+    const transactions = await Transaction.find({ organizationId: req.user.companyId })
+      .select("amount currency planKey interval status channel paidAt createdAt")
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .lean();
+
+    return res.status(200).json({ transactions });
+  } catch (error) {
+    console.error("Failed to load billing history", { message: error.message });
+    return res.status(500).json({ message: "Could not load billing history." });
+  }
+});
+
 router.get("/transactions/:reference", verifyToken, async (req, res) => {
   const companyId = req.user.companyId;
   if (!companyId) {

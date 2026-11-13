@@ -32,7 +32,7 @@ function Login({ navigate, rememberEmail }) {
     <>
       <div className="form-heading">
         <span className="step-kicker">WELCOME BACK</span>
-        <h2>Sign in to Nudge</h2>
+        <h2>Sign in to NUDGE</h2>
         <p>Sign in to continue to your workspace.</p>
       </div>
 

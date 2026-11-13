@@ -1,0 +1,335 @@
+.conversation-inbox {
+  width: min(100%, 1250px);
+  margin: 0 auto;
+}
+
+.inbox-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.inbox-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #3199b7;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .8px;
+}
+
+.inbox-heading h1 {
+  margin: 8px 0 0;
+  color: #1d2c38;
+  font-size: 28px;
+  letter-spacing: -1px;
+}
+
+.inbox-heading p {
+  margin: 7px 0 0;
+  color: #77858e;
+  font-size: 13px;
+}
+
+.inbox-count {
+  padding: 8px 11px;
+  border: 1px solid #e4ebee;
+  border-radius: 8px;
+  color: #60717b;
+  background: #fff;
+  font-size: 12px;
+}
+
+.inbox-layout {
+  min-height: 570px;
+  display: grid;
+  grid-template-columns: minmax(270px, .75fr) minmax(0, 1.5fr);
+  overflow: hidden;
+  border: 1px solid #e5ebef;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgb(23 43 57 / 2%);
+}
+
+.inbox-list-panel {
+  min-width: 0;
+  border-right: 1px solid #e9edf0;
+}
+
+.inbox-search {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 14px;
+  border-bottom: 1px solid #edf0f2;
+  color: #83919a;
+}
+
+.inbox-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  color: #33434e;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+}
+
+.inbox-search:focus-within {
+  box-shadow: inset 0 -2px #65cbe7;
+}
+
+.inbox-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.inbox-row {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 12px;
+  border: 0;
+  border-bottom: 1px solid #f0f2f4;
+  color: inherit;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.inbox-row:hover,
+.inbox-row.active {
+  background: #f3fbfd;
+}
+
+.inbox-row.active {
+  box-shadow: inset 3px 0 #4cb9d9;
+}
+
+.inbox-avatar {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: #328ba5;
+  background: #e8f7fb;
+}
+
+.inbox-row-copy {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.inbox-row-copy strong,
+.inbox-thread-header strong {
+  overflow: hidden;
+  color: #33434e;
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inbox-row-copy > span {
+  overflow: hidden;
+  color: #6f7e87;
+  font-size: 12px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inbox-row-copy small {
+  color: #8d999f;
+  font-size: 11px;
+}
+
+.inbox-thread-panel {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.inbox-thread-header {
+  min-height: 59px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #edf0f2;
+}
+
+.inbox-thread-header > span:nth-child(2) {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.inbox-thread-header small {
+  color: #87949b;
+  font-size: 11px;
+}
+
+.inbox-status {
+  padding: 5px 8px;
+  border-radius: 12px;
+  color: #347b5c;
+  background: #edf8f1;
+  font-size: 11px;
+  text-transform: capitalize;
+}
+
+.inbox-status.closed {
+  color: #737e85;
+  background: #f0f2f4;
+}
+
+.inbox-thread {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+  padding: 18px;
+  background: #fbfcfd;
+}
+
+.inbox-message {
+  max-width: min(80%, 540px);
+  align-self: flex-start;
+}
+
+.inbox-message.assistant {
+  align-self: flex-end;
+}
+
+.inbox-message p {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #e6ecef;
+  border-radius: 4px 12px 12px;
+  color: #40515b;
+  background: #fff;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.inbox-message.assistant p {
+  border-color: #d7eff5;
+  border-radius: 12px 4px 12px 12px;
+  color: #294d5a;
+  background: #eaf8fb;
+}
+
+.inbox-message time {
+  display: block;
+  margin: 5px 2px 0;
+  color: #8c989e;
+  font-size: 10px;
+}
+
+.inbox-message.assistant time {
+  text-align: right;
+}
+
+.inbox-readonly-note {
+  margin: 0;
+  padding: 10px 14px;
+  border-top: 1px solid #edf0f2;
+  color: #7e8a91;
+  font-size: 11px;
+  text-align: center;
+}
+
+.inbox-state {
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 9px;
+  padding: 20px;
+  color: #7b8991;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.inbox-state strong {
+  color: #3e4e58;
+  font-size: 13px;
+}
+
+.inbox-state.error {
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: flex-start;
+  color: #a13939;
+  background: #fff6f5;
+}
+
+.inbox-spin {
+  animation: inbox-spin 850ms linear infinite;
+}
+
+.inbox-row:focus-visible,
+.inbox-search input:focus-visible {
+  outline: 3px solid rgb(59 169 208 / 35%);
+  outline-offset: -2px;
+}
+
+@keyframes inbox-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 760px) {
+  .inbox-layout {
+    min-height: 0;
+    grid-template-columns: 1fr;
+  }
+
+  .inbox-list-panel {
+    max-height: 330px;
+    overflow-y: auto;
+    border-right: 0;
+    border-bottom: 1px solid #e9edf0;
+  }
+
+  .inbox-thread-panel {
+    min-height: 390px;
+  }
+
+  .inbox-thread {
+    min-height: 260px;
+  }
+}
+
+@media (max-width: 560px) {
+  .inbox-heading {
+    align-items: flex-start;
+  }
+
+  .inbox-heading h1 {
+    font-size: 25px;
+  }
+
+  .inbox-count {
+    font-size: 11px;
+  }
+}
